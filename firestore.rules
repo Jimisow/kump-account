@@ -1,0 +1,123 @@
+rules_version = '2';
+
+// Règles du projet Firebase KUMP — compte joueur partagé entre tous les jeux.
+//
+// Différence FONDAMENTALE avec les règles précédentes d'Androgame : le jeu
+// utilise désormais Firebase Auth, donc `request.auth.uid` existe et chaque
+// document peut être rattaché à son propriétaire. Un joueur ne peut plus
+// écrire que chez LUI — ce que les anciennes règles ne pouvaient pas garantir
+// (voir Androgame > AUDIT.md, SEC-01/SEC-02).
+//
+// Ce que ces règles garantissent :
+//   - personne ne peut lire ni écrire le profil d'un autre joueur ;
+//   - personne ne peut publier un score sous l'identité d'un autre ;
+//   - un compte anonyme ne peut pas apparaître au classement.
+//
+// Ce qu'elles NE garantissent PAS : la VALEUR de ce qu'un joueur écrit chez
+// lui (pièces, progression, temps de jeu, trophées). Le client reste seul
+// juge de ce qu'il a gagné tant que les Cloud Functions ne sont pas en place
+// — voir README > Limites. C'est un choix assumé pour la première version,
+// pas un oubli.
+//
+// Déploiement : firebase deploy --only firestore:rules --project <projet-kump>
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // --- Profil global du joueur -------------------------------------------
+    // Lisible par son seul propriétaire. Le pseudo affiché publiquement est
+    // recopié dans l'entrée de classement (voir plus bas), ce qui évite
+    // d'ouvrir la lecture de tout le profil à tout le monde.
+    match /users/{uid} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid)
+        && request.resource.data.keys().hasOnly(['displayName', 'createdAt', 'lastSeenAt', 'totalPlaytimeMs'])
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() >= 3
+        && request.resource.data.displayName.size() <= 16
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.lastSeenAt == request.time
+        && request.resource.data.totalPlaytimeMs == 0;
+      allow update: if isOwner(uid)
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['displayName', 'lastSeenAt', 'totalPlaytimeMs'])
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() >= 3
+        && request.resource.data.displayName.size() <= 16
+        // Le temps de jeu ne peut que croître, et jamais de plus de 6 h d'un
+        // coup (même plafond que `addPlaytime()` côté module — une valeur
+        // aberrante vient d'un compteur oublié ou d'une falsification).
+        && request.resource.data.totalPlaytimeMs is int
+        && request.resource.data.totalPlaytimeMs >= resource.data.totalPlaytimeMs
+        && request.resource.data.totalPlaytimeMs <= resource.data.totalPlaytimeMs + 21600000;
+      allow delete: if false;
+
+      // --- Données d'un jeu, pour ce joueur -------------------------------
+      // Forme LIBRE : chaque jeu range ce qu'il veut (voir gameData.js).
+      // Ajouter un jeu ne doit jamais demander de toucher à ces règles — d'où
+      // l'absence de `hasOnly()` ici, contrairement au profil global.
+      // Bornes de bon sens uniquement, pour éviter qu'un client fabrique un
+      // document énorme et fasse exploser la facture Firestore.
+      match /games/{gameId} {
+        allow read: if isOwner(uid);
+        allow write: if isOwner(uid)
+          && request.resource.data.size() <= 50
+          && (!('playtimeMs' in request.resource.data)
+              || request.resource.data.playtimeMs is int);
+        allow delete: if false;
+
+        // --- Trophées --------------------------------------------------
+        // Normalisés (kump.fr les affiche pour tous les jeux de la même
+        // façon) : un document par trophée, une seule date, jamais modifiable
+        // après coup — un trophée obtenu le reste, avec sa date d'origine.
+        match /trophies/{trophyId} {
+          allow read: if isOwner(uid);
+          allow create: if isOwner(uid)
+            && request.resource.data.keys().hasOnly(['unlockedAt'])
+            && request.resource.data.unlockedAt == request.time;
+          allow update, delete: if false;
+        }
+      }
+    }
+
+    // --- Classements, un par jeu -------------------------------------------
+    // Lecture publique (c'est un classement), écriture réservée au
+    // propriétaire de l'entrée : `entries/{uid}` avec `uid == request.auth.uid`
+    // rend structurellement impossible d'écrire un score sous le nom d'un
+    // autre joueur — la faille SEC-01 des anciennes règles d'Androgame.
+    match /leaderboards/{gameId}/entries/{uid} {
+      allow read: if true;
+      allow write: if isOwner(uid)
+        // Un compte anonyme n'apparaît pas au classement (voir submitScore).
+        && request.auth.token.firebase.sign_in_provider != 'anonymous'
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() <= 16
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.size() <= 20;
+      allow delete: if false;
+    }
+
+    // --- Catalogue public des jeux -----------------------------------------
+    // Nom, icône, liste des trophées et leurs libellés : lu par kump.fr pour
+    // afficher "3 trophées sur 12" sans que le site connaisse chaque jeu.
+    // Écriture réservée à la console Firebase (aucun client n'y touche).
+    match /games/{gameId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Tout le reste est fermé par défaut : une collection oubliée n'est jamais
+    // ouverte par accident.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
