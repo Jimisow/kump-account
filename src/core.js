@@ -33,8 +33,11 @@ const state = {
 export function initKump({ firebaseConfig, gameId, databaseId } = {}) {
   if (state.ready) return true;
 
-  if (!gameId || typeof gameId !== 'string') {
-    console.error('[kump] initKump: `gameId` est obligatoire (ex. "androgame").');
+  // `gameId` est obligatoire pour un JEU, optionnel pour un client qui ne
+  // fait que lire des profils (kump.fr) : les fonctions de données de jeu
+  // refuseront alors de s'exécuter (voir requireGameId), le reste marche.
+  if (gameId !== undefined && typeof gameId !== 'string') {
+    console.error('[kump] initKump: `gameId` doit être une chaîne (ex. "androgame").');
     return false;
   }
   // Une config incomplète ne doit JAMAIS faire planter le jeu : le module
@@ -86,4 +89,17 @@ export function requireReady(fnName) {
 /** Nom de fichier/collection du jeu courant. */
 export function getGameId() {
   return state.gameId;
+}
+
+/**
+ * Garde-fou des fonctions qui écrivent dans les données d'un jeu : sans
+ * `gameId`, elles n'ont aucun endroit où écrire. Évite qu'un client de
+ * lecture (kump.fr) crée par accident un document de jeu fantôme.
+ */
+export function requireGameId(fnName) {
+  if (!state.gameId) {
+    console.warn(`[kump] ${fnName}: aucun gameId — initKump() a été appelée sans, appel ignoré.`);
+    return false;
+  }
+  return true;
 }

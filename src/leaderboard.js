@@ -21,7 +21,7 @@ import {
   getCountFromServer,
   serverTimestamp,
 } from 'firebase/firestore';
-import { getKumpContext, requireReady, getGameId } from './core.js';
+import { getKumpContext, requireReady, requireGameId, getGameId } from './core.js';
 import { ensureSignedIn } from './auth.js';
 import { getProfile } from './profile.js';
 
@@ -37,7 +37,7 @@ import { getProfile } from './profile.js';
  * @param {object} stats  Métriques du jeu (nombres/chaînes courtes uniquement).
  */
 export async function submitScore(stats) {
-  if (!requireReady('submitScore')) return { success: false, error: 'not-ready' };
+  if (!requireReady('submitScore') || !requireGameId('submitScore')) return { success: false, error: 'not-ready' };
   const user = await ensureSignedIn();
   if (!user) return { success: false, error: 'not-signed-in' };
   if (user.isAnonymous) return { success: false, error: 'guest' };

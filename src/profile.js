@@ -7,7 +7,7 @@
 // fourre-tout que chaque nouveau jeu doit connaître.
 
 import { doc, getDoc, setDoc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
-import { getKumpContext, requireReady, getGameId } from './core.js';
+import { getKumpContext, requireReady, requireGameId, getGameId } from './core.js';
 import { ensureSignedIn, getCurrentUser } from './auth.js';
 
 /** Pseudo par défaut d'un compte tout neuf : "Joueur" + 4 chiffres du uid. */
@@ -116,7 +116,7 @@ export async function setDisplayName(displayName) {
  * @param {number} ms Durée à ajouter, en millisecondes.
  */
 export async function addPlaytime(ms) {
-  if (!requireReady('addPlaytime')) return false;
+  if (!requireReady('addPlaytime') || !requireGameId('addPlaytime')) return false;
   const amount = Math.floor(Number(ms) || 0);
   if (amount <= 0) return false;
   // Plafond de sécurité : une session de plus de 6 h vient forcément d'un

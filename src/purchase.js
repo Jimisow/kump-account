@@ -17,7 +17,7 @@
 // transaction ferme la désynchronisation, pas encore la falsification du prix.
 
 import { doc, runTransaction, arrayUnion } from 'firebase/firestore';
-import { getKumpContext, requireReady, getGameId } from './core.js';
+import { getKumpContext, requireReady, requireGameId, getGameId } from './core.js';
 import { ensureSignedIn } from './auth.js';
 
 /**
@@ -37,7 +37,7 @@ export async function purchaseGameItem({
   equippedField,
   coinsField = 'coins',
 } = {}) {
-  if (!requireReady('purchaseGameItem')) return { success: false, error: 'not-ready' };
+  if (!requireReady('purchaseGameItem') || !requireGameId('purchaseGameItem')) return { success: false, error: 'not-ready' };
   if (!itemId || !ownedField || !Number.isFinite(price) || price < 0) {
     console.error('[kump] purchaseGameItem: paramètres invalides.');
     return { success: false, error: 'invalid-args' };

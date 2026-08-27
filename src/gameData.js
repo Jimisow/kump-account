@@ -18,7 +18,7 @@ import {
   getDocs,
   serverTimestamp,
 } from 'firebase/firestore';
-import { getKumpContext, requireReady, getGameId } from './core.js';
+import { getKumpContext, requireReady, requireGameId, getGameId } from './core.js';
 import { ensureSignedIn } from './auth.js';
 
 /**
@@ -28,7 +28,7 @@ import { ensureSignedIn } from './auth.js';
  *   ce dernier cas le jeu doit garder ses données locales.
  */
 export async function loadGameData() {
-  if (!requireReady('loadGameData')) return null;
+  if (!requireReady('loadGameData') || !requireGameId('loadGameData')) return null;
   const user = await ensureSignedIn();
   if (!user) return null;
 
@@ -60,7 +60,7 @@ export async function loadGameData() {
  * @param {object} data
  */
 export async function saveGameData(data) {
-  if (!requireReady('saveGameData')) return false;
+  if (!requireReady('saveGameData') || !requireGameId('saveGameData')) return false;
   if (!data || typeof data !== 'object' || Array.isArray(data)) {
     console.error('[kump] saveGameData attend un objet.');
     return false;
@@ -99,7 +99,7 @@ export async function saveGameData(data) {
  *                             pratique pour n'afficher l'animation qu'une fois.
  */
 export async function unlockTrophy(trophyId) {
-  if (!requireReady('unlockTrophy')) return false;
+  if (!requireReady('unlockTrophy') || !requireGameId('unlockTrophy')) return false;
   const id = String(trophyId ?? '').trim();
   if (!id) return false;
 
@@ -124,7 +124,7 @@ export async function unlockTrophy(trophyId) {
  * @returns {Promise<Array<{id: string, unlockedAt: any}>>}
  */
 export async function getUnlockedTrophies() {
-  if (!requireReady('getUnlockedTrophies')) return [];
+  if (!requireReady('getUnlockedTrophies') || !requireGameId('getUnlockedTrophies')) return [];
   const user = await ensureSignedIn();
   if (!user) return [];
 

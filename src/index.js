@@ -42,6 +42,10 @@ export {
 } from './gameData.js';
 
 export {
+  getFullProfile,
+} from './fullProfile.js';
+
+export {
   purchaseGameItem,
 } from './purchase.js';
 
