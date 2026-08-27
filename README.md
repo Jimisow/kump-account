@@ -130,6 +130,19 @@ recalculent côté serveur ce que le joueur avait le droit de gagner (voir
 
 ## Index Firestore
 
-Un classement trié sur deux champs demande un index composite. Firestore
-renvoie un lien direct de création dans le message d'erreur au premier appel —
-il faut le suivre une fois par couple de champs trié.
+Un classement trié sur deux champs demande un index composite : Firestore
+refuse la requête sinon (« The query requires an index »), et le classement
+s'affiche vide au lieu de planter.
+
+Deux façons de les créer :
+
+- **`firestore.indexes.json`** (à la racine de ce module) :
+  `firebase deploy --only firestore:indexes --project <projet-kump>` ;
+- **à la main** dans la console (Firestore → Index → Composite) : ID de
+  collection `entries`, portée **Collection**, et les champs listés dans ce
+  même fichier. À préférer si les liens pré-remplis renvoyés par Firestore
+  dans ses messages d'erreur échouent — ils sont longs et se font parfois
+  tronquer au copier-coller.
+
+Un jeu qui trie son classement sur d'autres champs que ceux d'Androgame devra
+ajouter son propre couple d'index.

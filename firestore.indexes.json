@@ -1,0 +1,24 @@
+{
+  "//": "Index composites du projet Firebase KUMP. Un classement trié sur deux champs en a besoin : Firestore refuse la requête sinon (message 'The query requires an index'). Déployer avec : firebase deploy --only firestore:indexes --project kump-812dd — ou les créer à la main dans la console (Firestore > Index > Composite), ID de collection 'entries', portée 'Collection'.",
+  "indexes": [
+    {
+      "//": "Tri du classement d'Androgame (fetchLeaderboard) : meilleur pourcentage de progression d'abord, départagé par les diamants permanents.",
+      "collectionGroup": "entries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "avgProgressPercent", "order": "DESCENDING" },
+        { "fieldPath": "totalDiamonds", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "//": "Calcul du rang exact (fetchRank) : compte les joueurs devant, via une égalité sur avgProgressPercent PLUS une inégalité sur totalDiamonds. Cette combinaison a besoin de son PROPRE index, distinct du tri ci-dessus — le sens (croissant/décroissant) n'a pas d'importance pour un comptage sans orderBy, seule compte la combinaison de champs.",
+      "collectionGroup": "entries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "avgProgressPercent", "order": "ASCENDING" },
+        { "fieldPath": "totalDiamonds", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
