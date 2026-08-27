@@ -42,6 +42,10 @@ export {
 } from './gameData.js';
 
 export {
+  purchaseGameItem,
+} from './purchase.js';
+
+export {
   submitScore,
   fetchLeaderboard,
   fetchRank,

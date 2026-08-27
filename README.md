@@ -83,6 +83,7 @@ ce serait perdre la progression de tous les joueurs de ce jeu.
 | `loadGameData()` / `saveGameData(obj)` | Progression du joueur pour CE jeu, forme libre. |
 | `unlockTrophy(id)` | Débloque un trophée. Renvoie `true` seulement la première fois. |
 | `getUnlockedTrophies()` | Liste des trophées obtenus sur ce jeu. |
+| `purchaseGameItem({ itemId, price, ownedField, equippedField })` | Achat en UNE transaction : relit le solde côté serveur, débite et débloque ensemble. À utiliser pour tout achat en monnaie de jeu. |
 | `submitScore(stats)` | Publie l'entrée de classement (refusé pour un compte anonyme). |
 | `fetchLeaderboard({ sortBy, thenBy, max })` | Top N. |
 | `fetchRank({ sortBy, value, ... })` | Rang exact du joueur, par comptage serveur. |
@@ -115,6 +116,10 @@ sont **déclarées par le client**. Les règles Firestore garantissent que
 personne ne peut écrire chez quelqu'un d'autre, mais **pas** que ce qu'un
 joueur écrit chez lui est mérité : quelqu'un qui modifie le jeu dans son
 navigateur peut s'attribuer des pièces ou un trophée.
+
+`purchaseGameItem()` ferme un cas précis et important — la désynchronisation
+entre le débit et le déblocage, qui permettait d'obtenir des objets gratuits
+(SEC-05) — mais le PRIX vient toujours du jeu, donc du client.
 
 Rendre ces données infalsifiables demande des **Cloud Functions** qui
 recalculent côté serveur ce que le joueur avait le droit de gagner (voir
