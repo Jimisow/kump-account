@@ -77,7 +77,7 @@ ce serait perdre la progression de tous les joueurs de ce jeu.
 | `linkWithEmail(email, mdp)` | Transforme le compte anonyme en compte permanent, sans rien perdre. |
 | `signInWithEmail(email, mdp)` | Connexion à un compte existant (⚠️ abandonne la progression anonyme en cours). |
 | `sendPasswordReset(email)` | Email de réinitialisation. |
-| `getProfile()` | Pseudo, email, temps de jeu total, date d'inscription. |
+| `getProfile()` | Pseudo, email, temps de jeu total, date d'inscription, `isAdmin`. |
 | `setDisplayName(nom)` | Change le pseudo (3 à 16 caractères). |
 | `addPlaytime(ms)` | Ajoute du temps de jeu (total + jeu courant). |
 | `loadGameData()` / `saveGameData(obj)` | Progression du joueur pour CE jeu, forme libre. |

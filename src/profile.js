@@ -63,6 +63,13 @@ export async function getProfile() {
       email: user.email ?? null,
       totalPlaytimeMs: data.totalPlaytimeMs ?? 0,
       createdAt: data.createdAt ?? null,
+      // Drapeau d'administration, en LECTURE SEULE : posé à la main dans la
+      // console Firebase sur le compte concerné, jamais écrit par le module
+      // ni par un jeu. `firestore.rules` ne liste `isAdmin` dans AUCUN des
+      // `hasOnly()` de création/mise à jour du profil : il est donc
+      // structurellement impossible de se l'attribuer depuis un client, même
+      // en modifiant le code du jeu. C'est la seule protection nécessaire.
+      isAdmin: data.isAdmin === true,
     };
   } catch (error) {
     console.error('[kump] getProfile a échoué', error);
