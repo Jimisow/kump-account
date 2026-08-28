@@ -86,6 +86,14 @@ export function signInWithEmail(email: string, password: string): Promise<KumpRe
 export function sendPasswordReset(email: string): Promise<KumpResult>;
 export function signOutKump(): Promise<void>;
 
+// --- Fournisseurs externes ---
+// `link*` rattache le compte anonyme courant (garde la progression) — pour un
+// jeu. `signIn*` bascule vers le compte du fournisseur — pour un site.
+export function signInWithGoogle(): Promise<KumpResult>;
+export function signInWithApple(): Promise<KumpResult>;
+export function linkWithGoogle(): Promise<KumpResult>;
+export function linkWithApple(): Promise<KumpResult>;
+
 // --- Profil ---
 export function getProfile(): Promise<KumpProfile | null>;
 export function getFullProfile(): Promise<KumpFullProfile | null>;

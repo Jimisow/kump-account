@@ -76,6 +76,8 @@ ce serait perdre la progression de tous les joueurs de ce jeu.
 | `isGuest()` | `true` tant qu'aucun email n'est rattaché. |
 | `linkWithEmail(email, mdp)` | Transforme le compte anonyme en compte permanent, sans rien perdre. |
 | `signInWithEmail(email, mdp)` | Connexion à un compte existant (⚠️ abandonne la progression anonyme en cours). |
+| `linkWithGoogle()` / `linkWithApple()` | Rattache le compte anonyme à Google/Apple — la progression est conservée. **À utiliser dans un JEU.** |
+| `signInWithGoogle()` / `signInWithApple()` | Bascule vers le compte Google/Apple. **À utiliser sur un SITE**, où il n'y a pas de progression anonyme à préserver. |
 | `sendPasswordReset(email)` | Email de réinitialisation. |
 | `getProfile()` | Pseudo, email, temps de jeu total, date d'inscription, `isAdmin`. |
 | `setDisplayName(nom)` | Change le pseudo (3 à 16 caractères). |
@@ -87,6 +89,26 @@ ce serait perdre la progression de tous les joueurs de ce jeu.
 | `submitScore(stats)` | Publie l'entrée de classement (refusé pour un compte anonyme). |
 | `fetchLeaderboard({ sortBy, thenBy, max })` | Top N. |
 | `fetchRank({ sortBy, value, ... })` | Rang exact du joueur, par comptage serveur. |
+
+## Google et Apple
+
+Les deux demandent une activation dans **Firebase → Authentication → Sign-in
+method** :
+
+- **Google** : gratuit, deux clics, rien d'autre à faire ;
+- **Apple** : nécessite un **compte développeur Apple payant** (99 $/an) et la
+  configuration d'un Service ID côté Apple. Tant que ce n'est pas fait, les
+  fonctions renvoient `error: 'provider-disabled'` — à l'appelant d'afficher
+  « bientôt disponible » plutôt qu'une erreur.
+
+Les deux passent par une fenêtre popup (`signInWithPopup`). C'est fiable sur
+le web ; dans une WebView (application Capacitor), une popup peut être
+bloquée — il faudra alors basculer sur `signInWithRedirect`, non implémenté
+ici tant qu'aucun jeu n'est distribué en application native.
+
+Ne jamais utiliser `signIn*` dans un jeu : ça abandonnerait la progression
+accumulée en anonyme. C'est `link*` qu'il faut, et les deux existent
+séparément précisément pour rendre cette erreur impossible par distraction.
 
 ## Schéma Firestore
 

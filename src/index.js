@@ -29,6 +29,13 @@ export {
 } from './auth.js';
 
 export {
+  signInWithGoogle,
+  signInWithApple,
+  linkWithGoogle,
+  linkWithApple,
+} from './providers.js';
+
+export {
   getProfile,
   setDisplayName,
   addPlaytime,
