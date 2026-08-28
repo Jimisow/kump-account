@@ -1,9 +1,52 @@
 # kump-account
 
-Bibliothèque du **compte joueur KUMP**, partagée par tous les jeux KUMP et par
-le site kump.fr. La documentation d'usage (API, installation, schéma Firestore)
-vit dans [README.md](README.md) — ce fichier-ci ne contient que ce qu'un agent
-doit savoir **avant de modifier le module**.
+## À LIRE AVANT DE COMMENCER
+
+Bibliothèque du **compte joueur KUMP**, installée comme dépendance par tous les
+jeux et par le site. Trois dépôts évoluent ensemble :
+
+| Dépôt | Rôle |
+|---|---|
+| **kump-account** (ici) | le compte partagé — identité, sauvegarde, trophées, classements |
+| **Androgame** (`E:\Projet\Androgame`) | le premier jeu branché dessus |
+| **kump.fr** (`E:\Projet\Kump.fr`) | profil joueur et panel admin |
+
+⚠️ **Les deux consommateurs installent la branche `main`, sans version
+épinglée.** Un changement d'API cassant doit être répercuté dans les deux
+AVANT d'être poussé — sinon le jeu et le site cassent dès leur prochaine
+installation. Il n'y a aucun filet de version pour les protéger.
+
+La documentation d'usage (API, installation, schéma Firestore) vit dans
+[README.md](README.md) : c'est elle que lisent les projets consommateurs, la
+tenir à jour au même titre que ce fichier.
+
+### Les règles de travail sur ce projet
+
+1. **Tenir ce fichier à jour, systématiquement.** C'est la mémoire du projet :
+   chaque session part de ce qui est écrit ici. Une décision structurante, un
+   piège rencontré, un changement d'architecture ou de convention se
+   documentent **dans le même passage** que le code — pas « plus tard ». Un
+   `CLAUDE.md` périmé est pire que pas de documentation : il fait partir la
+   session suivante sur des informations fausses. Quand une section décrit un
+   système qui n'existe plus, la marquer **HISTORIQUE** plutôt que la
+   supprimer : le raisonnement d'origine reste utile.
+2. **Documenter le POURQUOI, pas le QUOI.** Le code dit déjà ce qu'il fait. Ce
+   qui se perd, c'est la raison d'un choix, l'option écartée et pourquoi, le
+   piège déjà payé une fois. C'est ce qui empêche quelqu'un de « simplifier »
+   un correctif six mois plus tard.
+3. **Vérifier en conditions réelles, jamais « ça compile ».** Lancer le vrai
+   parcours, regarder le résultat, prendre une capture. Beaucoup de bugs de ce
+   projet ne se voyaient qu'à l'écran ou qu'en production.
+4. **Ne pas deviner quand un symptôme n'existe qu'en production.** Demander les
+   logs d'abord. Deux hypothèses plausibles mais non vérifiées ont déjà coûté
+   deux cycles de déploiement inutiles.
+5. **Actions sensibles : demander avant.** Déploiement, suppression de données,
+   écriture dans une base de production, création de dépôt. Préparer le
+   changement et laisser la décision à l'utilisateur.
+6. **Rapporter fidèlement.** Si un test échoue, le dire avec sa sortie. Si une
+   partie du travail est laissée de côté, le dire explicitement. Ne jamais
+   présenter comme vérifié ce qui ne l'a pas été.
+
 
 ## Ce que ce module est, et n'est pas
 
@@ -86,8 +129,9 @@ une preuve d'honnêteté.
 
 - **Androgame** (`E:\\Projet\\Androgame`) — jeu Phaser. Voir sa section
   « Compte KUMP » dans son `CLAUDE.md`.
-- **kump.fr** (`E:\\Projet\\Kump.fr`) — site Next.js, page `/profil`, et à
-  venir le panel admin.
+- **kump.fr** (`E:\\Projet\\Kump.fr`) — site Next.js : page `/profil` et panel
+  admin (`/admin`, dont les routes serveur utilisent le SDK admin, pas ce
+  module).
 
 Un changement d'API **cassant** doit être répercuté dans les deux avant d'être
 poussé : ils installent la branche `main`, il n'y a pas de version épinglée
