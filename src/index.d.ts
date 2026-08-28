@@ -80,6 +80,8 @@ export function getKumpContext(): Record<string, unknown>;
 export function ensureSignedIn(): Promise<KumpUser | null>;
 export function onUserChanged(callback: (user: KumpUser | null) => void): () => void;
 export function getCurrentUser(): KumpUser | null;
+/** Jeton à envoyer à un backend qui doit vérifier l'identité de l'appelant. */
+export function getIdToken(): Promise<string | null>;
 export function isGuest(): boolean;
 export function linkWithEmail(email: string, password: string): Promise<KumpResult>;
 export function signInWithEmail(email: string, password: string): Promise<KumpResult>;

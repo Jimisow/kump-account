@@ -73,6 +73,33 @@ export function onUserChanged(callback) {
   return onAuthStateChanged(auth, callback);
 }
 
+/**
+ * Jeton d'identité du joueur connecté, à envoyer à un serveur qui doit
+ * VÉRIFIER qui appelle (`Authorization: Bearer <token>`).
+ *
+ * C'est la seule façon correcte de s'authentifier auprès d'un backend avec
+ * Firebase : le serveur valide le jeton cryptographiquement auprès de Google.
+ * Ne JAMAIS envoyer un `uid` brut à la place — n'importe qui pourrait écrire
+ * celui d'un autre dans sa requête et se faire passer pour lui.
+ *
+ * Le jeton est renouvelé automatiquement par Firebase (validité ~1 h) : le
+ * redemander avant chaque appel plutôt que de le mettre en cache.
+ *
+ * @returns {Promise<string|null>}
+ */
+export async function getIdToken() {
+  if (!requireReady('getIdToken')) return null;
+  const { auth } = getKumpContext();
+  const user = auth.currentUser;
+  if (!user) return null;
+  try {
+    return await user.getIdToken();
+  } catch (error) {
+    console.error('[kump] getIdToken a échoué', error);
+    return null;
+  }
+}
+
 /** Utilisateur courant, ou `null`. Synchrone : peut valoir `null` juste au démarrage. */
 export function getCurrentUser() {
   const { auth, ready } = getKumpContext();

@@ -21,6 +21,7 @@ export {
   ensureSignedIn,
   onUserChanged,
   getCurrentUser,
+  getIdToken,
   isGuest,
   linkWithEmail,
   signInWithEmail,
