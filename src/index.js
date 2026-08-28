@@ -58,6 +58,13 @@ export {
 } from './purchase.js';
 
 export {
+  submitRun,
+  flushRunQueue,
+  pendingRunCount,
+  purchaseFromServer,
+} from './runs.js';
+
+export {
   submitScore,
   fetchLeaderboard,
   fetchRank,

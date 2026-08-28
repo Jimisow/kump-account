@@ -14,6 +14,21 @@ export interface KumpInitOptions {
   gameId?: string;
   /** Base Firestore nommée, si le projet n'utilise pas "(default)". */
   databaseId?: string;
+  /** URL du serveur de validation des parties (ex. "https://www.kump.fr"). */
+  apiBaseUrl?: string;
+}
+
+export interface KumpRunResult {
+  accepted: boolean;
+  /** Le serveur était injoignable : la partie est en file d'attente locale. */
+  queued?: boolean;
+  /** Le serveur a répondu non : la partie est abandonnée, pas réessayée. */
+  refused?: boolean;
+  reason?: string;
+  coins?: number;
+  percent?: number;
+  newDiamonds?: number;
+  trophies?: string[];
 }
 
 export interface KumpTimestamp {
@@ -116,6 +131,14 @@ export function purchaseGameItem(options: {
   equippedField?: string;
   coinsField?: string;
 }): Promise<KumpPurchaseResult>;
+
+// --- Parties validées par le serveur ---
+export function submitRun(run: Record<string, unknown>): Promise<KumpRunResult>;
+export function flushRunQueue(): Promise<{ sent: number; remaining: number }>;
+export function pendingRunCount(): number;
+export function purchaseFromServer(options: { kind: "skin" | "trail"; itemId: string }): Promise<
+  KumpResult & { coins?: number; alreadyOwned?: boolean; price?: number }
+>;
 
 // --- Classements ---
 export function submitScore(stats: Record<string, unknown>): Promise<KumpResult>;

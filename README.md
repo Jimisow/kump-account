@@ -85,10 +85,37 @@ ce serait perdre la progression de tous les joueurs de ce jeu.
 | `loadGameData()` / `saveGameData(obj)` | Progression du joueur pour CE jeu, forme libre. |
 | `unlockTrophy(id)` | Débloque un trophée. Renvoie `true` seulement la première fois. |
 | `getUnlockedTrophies()` | Liste des trophées obtenus sur ce jeu. |
+| `submitRun(run)` | Envoie une fin de partie au serveur, qui la valide et crédite. Mise en file d'attente locale si le réseau manque. |
+| `flushRunQueue()` | Renvoie les parties en attente. À appeler au démarrage du jeu. |
+| `pendingRunCount()` | Nombre de parties en attente. |
+| `purchaseFromServer({ kind, itemId })` | Achat validé par le serveur, qui détient les prix. **À préférer à `purchaseGameItem`.** |
 | `purchaseGameItem({ itemId, price, ownedField, equippedField })` | Achat en UNE transaction : relit le solde côté serveur, débite et débloque ensemble. À utiliser pour tout achat en monnaie de jeu. |
 | `submitScore(stats)` | Publie l'entrée de classement (refusé pour un compte anonyme). |
 | `fetchLeaderboard({ sortBy, thenBy, max })` | Top N. |
 | `fetchRank({ sortBy, value, ... })` | Rang exact du joueur, par comptage serveur. |
+
+## Validation serveur des parties
+
+Un jeu ne DÉCLARE plus ce qu'il a gagné : il le DEMANDE via `submitRun()`, et
+un serveur juge la plausibilité du run contre les données réelles du niveau
+avant d'écrire. C'est ce qui rend pièces, progression et diamants
+infalsifiables — le client n'ayant plus le droit d'écrire ces champs.
+
+Nécessite `apiBaseUrl` dans `initKump()` (l'URL du serveur de validation).
+Sans elle, les parties restent en file d'attente locale sans jamais partir.
+
+**File d'attente** : si le serveur est injoignable, le run est gardé sur
+l'appareil et renvoyé au prochain `flushRunQueue()`. Un joueur dans le métro ne
+perd donc rien. Un tricheur peut fabriquer de faux runs en attente, mais le
+serveur les validera comme les autres — la file n'ouvre aucune faille.
+
+Un run **refusé** par le serveur (trop de pièces, niveau inconnu) est
+abandonné, jamais réessayé : le renvoyer donnerait le même refus indéfiniment.
+Seule une absence de réponse met en file.
+
+`purchaseFromServer()` suit le même principe pour les achats, sans file : un
+achat hors ligne ne peut pas être validé plus tard sans mentir au joueur sur
+son solde entre-temps.
 
 ## Google et Apple
 

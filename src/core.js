@@ -11,6 +11,10 @@ const state = {
   auth: null,
   db: null,
   gameId: null,
+  // URL du serveur de validation (kump.fr). Sans elle, un jeu ne peut pas
+  // faire valider ses parties : elles resteront en file d'attente locale
+  // jusqu'a ce qu'elle soit renseignee.
+  apiBaseUrl: null,
   ready: false,
 };
 
@@ -30,7 +34,7 @@ const state = {
  *                    incomplète (le jeu doit alors continuer à tourner en mode
  *                    hors-ligne, voir README > Dégradation).
  */
-export function initKump({ firebaseConfig, gameId, databaseId } = {}) {
+export function initKump({ firebaseConfig, gameId, databaseId, apiBaseUrl } = {}) {
   if (state.ready) return true;
 
   // `gameId` est obligatoire pour un JEU, optionnel pour un client qui ne
@@ -47,6 +51,7 @@ export function initKump({ firebaseConfig, gameId, databaseId } = {}) {
   if (!firebaseConfig || !Object.values(firebaseConfig).every(Boolean)) {
     console.warn('[kump] initKump: configuration Firebase absente ou incomplète — module inactif.');
     state.gameId = gameId;
+    state.apiBaseUrl = apiBaseUrl ?? null;
     return false;
   }
 
@@ -58,6 +63,8 @@ export function initKump({ firebaseConfig, gameId, databaseId } = {}) {
   state.auth = getAuth(state.app);
   state.db = databaseId ? getFirestore(state.app, databaseId) : getFirestore(state.app);
   state.gameId = gameId;
+  // Sans slash final : les chemins appeles commencent tous par '/'.
+  state.apiBaseUrl = apiBaseUrl ? String(apiBaseUrl).replace(/\/$/, '') : null;
   state.ready = true;
   return true;
 }
