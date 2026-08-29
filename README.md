@@ -83,14 +83,14 @@ ce serait perdre la progression de tous les joueurs de ce jeu.
 | `setDisplayName(nom)` | Change le pseudo (3 à 16 caractères). |
 | `addPlaytime(ms)` | Ajoute du temps de jeu (total + jeu courant). |
 | `loadGameData()` / `saveGameData(obj)` | Progression du joueur pour CE jeu, forme libre. |
-| `unlockTrophy(id)` | Débloque un trophée. Renvoie `true` seulement la première fois. |
+| `unlockTrophy(id)` | ⚠️ **Ne fonctionne plus depuis la phase 3** : les règles refusent au client d'écrire un trophée, c'est le serveur qui les attribue en validant un run. Conservée pour un futur jeu sans serveur de validation. |
 | `getUnlockedTrophies()` | Liste des trophées obtenus sur ce jeu. |
 | `submitRun(run)` | Envoie une fin de partie au serveur, qui la valide et crédite. Mise en file d'attente locale si le réseau manque. |
 | `flushRunQueue()` | Renvoie les parties en attente. À appeler au démarrage du jeu. |
 | `pendingRunCount()` | Nombre de parties en attente. |
 | `purchaseFromServer({ kind, itemId })` | Achat validé par le serveur, qui détient les prix. **À préférer à `purchaseGameItem`.** |
-| `purchaseGameItem({ itemId, price, ownedField, equippedField })` | Achat en UNE transaction : relit le solde côté serveur, débite et débloque ensemble. À utiliser pour tout achat en monnaie de jeu. |
-| `submitScore(stats)` | Publie l'entrée de classement (refusé pour un compte anonyme). |
+| `purchaseGameItem({ itemId, price, ownedField, equippedField })` | ⚠️ **Ne fonctionne plus depuis la phase 3** (le client ne peut plus écrire `coins`), et le PRIX y venait du jeu, donc du client. Conservée pour un futur jeu sans serveur de validation. |
+| `submitScore(stats)` | ⚠️ **Ne fonctionne plus depuis la phase 3** : `leaderboards/*` est en écriture fermée, le classement est publié par le serveur en validant un run. Conservée pour un futur jeu sans serveur de validation. |
 | `fetchLeaderboard({ sortBy, thenBy, max })` | Top N. |
 | `fetchRank({ sortBy, value, ... })` | Rang exact du joueur, par comptage serveur. |
 
@@ -109,9 +109,18 @@ l'appareil et renvoyé au prochain `flushRunQueue()`. Un joueur dans le métro n
 perd donc rien. Un tricheur peut fabriquer de faux runs en attente, mais le
 serveur les validera comme les autres — la file n'ouvre aucune faille.
 
-Un run **refusé** par le serveur (trop de pièces, niveau inconnu) est
-abandonné, jamais réessayé : le renvoyer donnerait le même refus indéfiniment.
-Seule une absence de réponse met en file.
+Un run **refusé** par le serveur (trop de pièces, butin hors de portée, niveau
+inconnu) est abandonné, jamais réessayé : le renvoyer donnerait le même refus
+indéfiniment.
+
+**« Trop tôt » n'est PAS un refus.** Le serveur limite le rythme auquel une
+progression peut être créditée (réserve de temps réel côté serveur) et répond
+alors `retryable: true`. Un run dans ce cas **retourne en file**, comme si le
+réseau avait manqué — dans `submitRun()` comme dans `flushRunQueue()`, qui
+s'arrête là et garde la suite. Confondre les deux perdait la progression de
+joueurs honnêtes : celui qui meurt deux fois en quelques secondes, ou qui rentre
+du métro avec plusieurs parties en attente (voir Androgame > AUDIT.md, SEC-13).
+Ne jamais retransformer un refus `retryable` en abandon.
 
 `purchaseFromServer()` suit le même principe pour les achats, sans file : un
 achat hors ligne ne peut pas être validé plus tard sans mentir au joueur sur

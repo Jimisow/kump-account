@@ -39,6 +39,17 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Préférences d'apparence d'un jeu : les deux seuls champs qu'un client a
+    // encore le droit d'écrire depuis la phase 3 (voir `games/{gameId}`).
+    // Chaque champ est vérifié S'IL EST PRÉSENT, jamais exigé — voir le
+    // commentaire de `allow create` plus bas pour le cas réel que l'exiger
+    // refusait. Un identifiant de skin de plus de 64 caractères n'existe dans
+    // aucun catalogue : la borne empêche de semer un document énorme.
+    function hasBoundedAppearance(data) {
+      return (!('equippedSkin' in data) || (data.equippedSkin is string && data.equippedSkin.size() <= 64))
+        && (!('equippedTrail' in data) || (data.equippedTrail is string && data.equippedTrail.size() <= 64));
+    }
+
     // --- Profil global du joueur -------------------------------------------
     // Lisible par son seul propriétaire. Le pseudo affiché publiquement est
     // recopié dans l'entrée de classement (voir plus bas), ce qui évite
@@ -95,17 +106,28 @@ service cloud.firestore {
         // Création du document au tout premier lancement : seules les
         // préférences d'apparence, rien de gagnable. `keys()` et non `diff()`
         // — sur une création il n'y a pas de document précédent à comparer.
+        //
+        // Chaque champ est vérifié S'IL EST PRÉSENT, jamais exigé. Les exiger
+        // tous les deux (ce que faisaient ces règles) refusait un cas réel :
+        // le document peut avoir été créé par le SERVEUR au premier run validé
+        // — il n'y met alors que ce qu'il accorde, donc pas de skin équipé — et
+        // le joueur qui équipait ensuite une traînée se voyait refuser
+        // l'écriture, parce que `equippedSkin` manquait au document résultant.
+        //
+        // La borne de taille, elle, s'applique aussi à la création : sans
+        // elle, un client pouvait semer un document d'un mégaoctet.
         allow create: if isOwner(uid)
           && request.resource.data.keys().hasOnly(['equippedSkin', 'equippedTrail'])
-          && request.resource.data.equippedSkin is string
-          && request.resource.data.equippedTrail is string;
+          && hasBoundedAppearance(request.resource.data);
+        // ⚠️ Jamais de `keys().hasOnly()` ici, contrairement à la création :
+        // `request.resource.data` est le document RÉSULTANT, qui contient les
+        // pièces, la progression et les diamants écrits par le serveur. Le
+        // périmètre de l'écriture se contrôle par `diff().affectedKeys()`,
+        // qui ne regarde QUE ce qui change.
         allow update: if isOwner(uid)
           && request.resource.data.diff(resource.data).affectedKeys()
                .hasOnly(['equippedSkin', 'equippedTrail'])
-          && request.resource.data.equippedSkin is string
-          && request.resource.data.equippedSkin.size() <= 64
-          && request.resource.data.equippedTrail is string
-          && request.resource.data.equippedTrail.size() <= 64;
+          && hasBoundedAppearance(request.resource.data);
         allow delete: if false;
 
         // --- Trophées --------------------------------------------------

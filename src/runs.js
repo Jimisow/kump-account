@@ -106,9 +106,18 @@ export async function submitRun(run) {
     };
   }
 
-  // 429 = trop rapproché du run précédent (anti-rejeu). Ce n'est pas un refus
-  // définitif, mais réessayer plus tard n'a pas de sens non plus : la partie
-  // suivante repartira de l'état correct.
+  // « Pas encore » n'est PAS « non ». Le serveur limite le rythme auquel une
+  // progression peut être créditée (voir kump.fr > /api/game/run, réserve de
+  // temps réel) : une partie refusée pour cette raison est parfaitement
+  // valide, elle arrive juste trop tôt. La jeter perdrait la progression d'un
+  // joueur honnête — typiquement celui qui meurt deux fois en quelques
+  // secondes, ou qui rentre du métro avec plusieurs parties en attente. On la
+  // remet donc en file, comme si le réseau avait manqué.
+  if (result.data?.retryable) {
+    writeQueue([...readQueue(), { ...payload, queuedAt: Date.now() }]);
+    return { accepted: false, queued: true, reason: result.data?.reason ?? 'too-soon' };
+  }
+
   return { accepted: false, refused: true, reason: result.data?.reason ?? 'unknown' };
 }
 
@@ -130,17 +139,26 @@ export async function flushRunQueue() {
   const restants = [];
   let sent = 0;
 
-  for (const run of queue) {
+  for (const [index, run] of queue.entries()) {
     const result = await post('/api/game/run', run);
     if (result.networkError) {
       // Toujours hors ligne : on garde celui-ci ET tous les suivants, sans
       // insister — inutile de marteler un réseau absent.
-      restants.push(run, ...queue.slice(queue.indexOf(run) + 1));
+      restants.push(...queue.slice(index));
+      break;
+    }
+    if (result.data?.retryable) {
+      // Réserve de temps réel épuisée (voir `submitRun`) : les parties
+      // suivantes se heurteraient forcément au même mur, puisqu'elles
+      // puisent dans la même réserve. On garde tout et on réessaiera au
+      // prochain retour au menu — rien n'est perdu, juste différé.
+      restants.push(...queue.slice(index));
       break;
     }
     if (result.status === 200 && result.data?.ok) sent += 1;
-    // Un run refusé par le serveur (trop de pièces, niveau inconnu, délai) est
-    // ABANDONNÉ : le renvoyer donnerait le même refus à chaque lancement.
+    // Un run VRAIMENT refusé par le serveur (trop de pièces, niveau inconnu,
+    // butin hors de portée) est ABANDONNÉ : le renvoyer donnerait le même
+    // refus à chaque lancement.
   }
 
   writeQueue(restants);

@@ -20,9 +20,17 @@ export interface KumpInitOptions {
 
 export interface KumpRunResult {
   accepted: boolean;
-  /** Le serveur était injoignable : la partie est en file d'attente locale. */
+  /**
+   * La partie est en file d'attente locale et repartira plus tard. Deux cas :
+   * le serveur était injoignable, ou il a répondu « trop tôt » (`retryable`,
+   * réserve de temps réel épuisée) — ce dernier n'est PAS un refus, la partie
+   * est valide, elle arrive juste trop vite.
+   */
   queued?: boolean;
-  /** Le serveur a répondu non : la partie est abandonnée, pas réessayée. */
+  /**
+   * Le serveur a répondu non, définitivement (butin hors de portée, niveau
+   * inconnu) : la partie est abandonnée, jamais réessayée.
+   */
   refused?: boolean;
   reason?: string;
   coins?: number;
