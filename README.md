@@ -174,7 +174,7 @@ par le SERVEUR a chaque partie validee — un jeu ne s'en attribue jamais.
 
 | Fonction | A quoi ca sert |
 |---|---|
-| `getShopCatalog()` | Categories, objets, prix, nom de la monnaie. Vient du serveur : le jeu n'ecrit aucun prix. `null` = boutique indisponible (a distinguer d'une boutique vide). |
+| `getShopCatalog()` | Categories, objets, prix, nom de la monnaie. Vient du serveur : le jeu n'ecrit aucun prix. `null` = boutique indisponible (a distinguer d'une boutique vide). Depuis le 2026-08-30 les prix peuvent avoir ete corriges depuis le panel admin de kump.fr — **ne jamais mettre un prix en cache cote jeu**, il changerait sans redeploiement. |
 | `getShopState()` | Solde, objets possedes et objets equipes, deja recoupes avec le catalogue. |
 | `buyItem({ kind, itemId })` | Achat. Le serveur applique le prix qu'il detient. |
 | `equipItem({ kind, itemId })` | Equipe un objet possede. **Meme appel** que l'achat, sans debit. |
@@ -185,6 +185,13 @@ d'Androgame) : un jeu neuf ne peut pas ecrire son propre champ d'equipement.
 
 ⚠️ **Le solde affiche vient TOUJOURS de la reponse du serveur**, jamais d'un
 calcul local (`solde - prix`) : c'est exactement la faille SEC-05.
+
+⚠️ **Un objet peut etre RETIRE DE LA VENTE** depuis le panel admin de kump.fr.
+Il disparait alors de `getShopCatalog()`, mais un joueur qui le POSSEDE deja
+doit toujours pouvoir l'equiper : `equipItem()` continue de fonctionner pour
+lui. Un ecran qui n'affiche que le catalogue laisserait donc un joueur avec un
+objet possede, equipe, et introuvable — afficher aussi ce que `getShopState()`
+renvoie comme possede.
 
 ## Ecrans prets a l'emploi (`kump-account/ui`)
 
