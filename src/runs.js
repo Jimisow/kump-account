@@ -7,69 +7,23 @@
 // diamants.
 //
 // Conséquence assumée : le jeu dépend du réseau pour enregistrer une partie.
-// D'où la file d'attente ci-dessous — sans elle, un joueur dans le métro
-// perdrait sa progression, ce qui serait bien pire que la triche qu'on cherche
-// à empêcher.
+// D'où la file d'attente — sans elle, un joueur dans le métro perdrait sa
+// progression, ce qui serait bien pire que la triche qu'on cherche à empêcher.
+//
+// La mécanique de file et d'envoi vit dans `transport.js`, partagée avec les
+// sessions de jeu (`session.js`) : c'est là que se trouve la distinction
+// refus définitif / `retryable` / réseau absent, et elle ne doit exister qu'à
+// un seul endroit (voir SEC-13).
 
-import { getKumpContext, requireReady, requireGameId, getGameId } from './core.js';
-import { ensureSignedIn, getIdToken } from './auth.js';
+import { requireReady, requireGameId, getGameId } from './core.js';
+import { makeQueue, post, flushQueue } from './transport.js';
 
-const QUEUE_KEY = 'kump.pendingRuns';
-/** Au-delà, on jette les plus anciens : une file sans limite finirait par
- *  saturer le stockage du navigateur, et un run vieux de trois semaines
- *  n'intéresse plus personne. */
-const QUEUE_MAX = 50;
-
-function readQueue() {
-  try {
-    const raw = localStorage.getItem(QUEUE_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeQueue(runs) {
-  try {
-    localStorage.setItem(QUEUE_KEY, JSON.stringify(runs.slice(-QUEUE_MAX)));
-  } catch {
-    /* stockage plein ou indisponible : tant pis, on ne bloque pas le jeu */
-  }
-}
+const RUN_PATH = '/api/game/run';
+const queue = makeQueue('kump.pendingRuns');
 
 /** Nombre de parties en attente d'envoi — pour l'afficher au joueur si besoin. */
 export function pendingRunCount() {
-  return readQueue().length;
-}
-
-async function post(path, body) {
-  const { apiBaseUrl } = getKumpContext();
-  if (!apiBaseUrl) {
-    console.warn('[kump] initKump: `apiBaseUrl` absente — impossible de valider les parties.');
-    return { networkError: true };
-  }
-
-  const user = await ensureSignedIn();
-  if (!user) return { networkError: true };
-  const token = await getIdToken();
-  if (!token) return { networkError: true };
-
-  try {
-    const response = await fetch(`${apiBaseUrl}${path}`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
-      body: JSON.stringify(body),
-    });
-    const data = await response.json().catch(() => ({}));
-    // On distingue soigneusement DEUX échecs très différents : le serveur a
-    // répondu « non » (le run est refusé, inutile de réessayer), ou il n'a pas
-    // répondu du tout (à remettre en file). Confondre les deux ferait
-    // réessayer indéfiniment un run que le serveur rejettera toujours.
-    return { status: response.status, data, networkError: false };
-  } catch {
-    return { networkError: true };
-  }
+  return queue.count();
 }
 
 /**
@@ -86,13 +40,13 @@ export async function submitRun(run) {
   }
 
   const payload = { ...run, gameId: getGameId() };
-  const result = await post('/api/game/run', payload);
+  const result = await post(RUN_PATH, payload);
 
   if (result.networkError) {
     // Hors ligne : on garde le run pour le prochain lancement. Un tricheur
     // peut fabriquer de faux runs en attente, mais le serveur les validera
     // comme les autres — la file ne crée donc aucune faille.
-    writeQueue([...readQueue(), { ...payload, queuedAt: Date.now() }]);
+    queue.write([...queue.read(), { ...payload, queuedAt: Date.now() }]);
     return { accepted: false, queued: true };
   }
 
@@ -114,7 +68,7 @@ export async function submitRun(run) {
   // secondes, ou qui rentre du métro avec plusieurs parties en attente. On la
   // remet donc en file, comme si le réseau avait manqué.
   if (result.data?.retryable) {
-    writeQueue([...readQueue(), { ...payload, queuedAt: Date.now() }]);
+    queue.write([...queue.read(), { ...payload, queuedAt: Date.now() }]);
     return { accepted: false, queued: true, reason: result.data?.reason ?? 'too-soon' };
   }
 
@@ -124,45 +78,15 @@ export async function submitRun(run) {
 /**
  * Renvoie les parties restées en attente. À appeler au démarrage du jeu.
  *
- * Les runs sont envoyés un par un et dans l'ordre : le serveur impose un délai
- * minimum entre deux parties (anti-rejeu), donc un envoi en parallèle en
- * verrait la plupart rejetés.
+ * Les runs partent un par un et dans l'ordre : le serveur borne le rythme
+ * auquel il crédite, donc un envoi en parallèle en verrait la plupart
+ * refusés. Les trois cas d'arrêt sont dans `transport.js > flushQueue`.
  *
  * @returns {Promise<{sent: number, remaining: number}>}
  */
 export async function flushRunQueue() {
   if (!requireReady('flushRunQueue')) return { sent: 0, remaining: 0 };
-
-  const queue = readQueue();
-  if (queue.length === 0) return { sent: 0, remaining: 0 };
-
-  const restants = [];
-  let sent = 0;
-
-  for (const [index, run] of queue.entries()) {
-    const result = await post('/api/game/run', run);
-    if (result.networkError) {
-      // Toujours hors ligne : on garde celui-ci ET tous les suivants, sans
-      // insister — inutile de marteler un réseau absent.
-      restants.push(...queue.slice(index));
-      break;
-    }
-    if (result.data?.retryable) {
-      // Réserve de temps réel épuisée (voir `submitRun`) : les parties
-      // suivantes se heurteraient forcément au même mur, puisqu'elles
-      // puisent dans la même réserve. On garde tout et on réessaiera au
-      // prochain retour au menu — rien n'est perdu, juste différé.
-      restants.push(...queue.slice(index));
-      break;
-    }
-    if (result.status === 200 && result.data?.ok) sent += 1;
-    // Un run VRAIMENT refusé par le serveur (trop de pièces, niveau inconnu,
-    // butin hors de portée) est ABANDONNÉ : le renvoyer donnerait le même
-    // refus à chaque lancement.
-  }
-
-  writeQueue(restants);
-  return { sent, remaining: restants.length };
+  return flushQueue(queue, RUN_PATH);
 }
 
 /**

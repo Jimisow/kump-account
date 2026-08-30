@@ -65,6 +65,29 @@ export {
 } from './runs.js';
 
 export {
+  getGameCatalog,
+} from './catalog.js';
+
+export {
+  getShopCatalog,
+  getShopState,
+  buyItem,
+  equipItem,
+} from './shop.js';
+
+export {
+  kumpMessage,
+  isSilentCode,
+  KUMP_MESSAGES,
+} from './messages.js';
+
+export {
+  submitSession,
+  flushSessionQueue,
+  pendingSessionCount,
+} from './session.js';
+
+export {
   submitScore,
   fetchLeaderboard,
   fetchRank,

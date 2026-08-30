@@ -55,6 +55,11 @@ export async function signInWithApple() {
 /**
  * Rattache le compte anonyme courant à un compte Google — la progression est
  * conservée. Pour un JEU.
+ *
+ * ⚠️ Échoue avec `credential-in-use` si ce compte Google appartient déjà à un
+ * autre profil KUMP (cas courant : le joueur a déjà un compte créé depuis un
+ * autre jeu). Ce n'est PAS une impasse — l'appelant doit alors proposer
+ * `signInWithGoogle()`, en prévenant que la session anonyme sera abandonnée.
  */
 export async function linkWithGoogle() {
   return runProvider('linkWithGoogle', googleProvider(), 'link');
@@ -102,12 +107,31 @@ function mapProviderError(error) {
   }
   if (code.includes('popup-blocked')) return 'popup-blocked';
 
-  // Ce compte Google/Apple est DÉJÀ rattaché à un autre compte KUMP. On ne
-  // fusionne pas automatiquement : il faudrait choisir quelle progression
-  // garder, ce qu'aucun code ne peut décider à la place du joueur.
-  if (code.includes('credential-already-in-use') || code.includes('account-exists-with-different-credential')) {
-    return 'already-linked';
+  // ⚠️ TROIS SITUATIONS DISTINCTES, longtemps confondues sous un seul code
+  // `already-linked`. Elles n'ont pas du tout la même sortie pour le joueur,
+  // et les mélanger menait à une impasse : le message disait « ce compte est
+  // déjà rattaché à un autre profil » sans proposer quoi que ce soit, alors
+  // que dans le cas le plus fréquent il suffisait de SE CONNECTER.
+  //
+  // Cas le plus fréquent, et le seul qui a une vraie issue : ce compte Google
+  // appartient à un AUTRE compte KUMP — typiquement le joueur a déjà un profil
+  // créé depuis un autre jeu. Firebase refuse de rattacher une identité déjà
+  // prise, ce qui est correct. La sortie est de basculer sur ce compte
+  // (`signInWithGoogle`), en prévenant que la session anonyme en cours sera
+  // abandonnée. On ne fusionne JAMAIS automatiquement : il faudrait choisir
+  // quelle progression garder, ce qu'aucun code ne peut décider à la place du
+  // joueur.
+  if (code.includes('credential-already-in-use')) return 'credential-in-use';
+
+  // Un compte KUMP existe déjà avec cette ADRESSE, mais via un autre moyen de
+  // connexion (email + mot de passe, typiquement). La sortie est de se
+  // connecter par ce moyen-là, pas par Google.
+  if (code.includes('account-exists-with-different-credential')) {
+    return 'email-in-use-other-provider';
   }
+
+  // Le compte COURANT a déjà Google rattaché : il n'y a rien à faire, et
+  // surtout rien d'alarmant à afficher.
   if (code.includes('provider-already-linked')) return 'already-linked';
 
   console.error('[kump] Connexion par fournisseur échouée', error);
