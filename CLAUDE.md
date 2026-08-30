@@ -375,6 +375,12 @@ une preuve d'honnêteté.
 
 ## Après toute modification
 
+> ⚠️ **C'est l'ASSISTANT qui lance ces commandes, jamais l'utilisateur.**
+> La procédure complète — ordre de déploiement des cinq dépôts, ports en
+> développement, et la liste de ce qui casse SILENCIEUSEMENT quand on saute
+> une étape — vit dans [EXPLOITATION.md](EXPLOITATION.md).
+
+
 1. `node --check` sur chaque fichier touché (pas de build, donc pas de filet
    de compilation).
 2. Mettre à jour `src/index.d.ts` si l'API publique change.
