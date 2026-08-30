@@ -2,6 +2,12 @@
 
 ## À LIRE AVANT DE COMMENCER
 
+> ⚠️ **[EXPLOITATION.md](EXPLOITATION.md) — à lire en premier.** Comment lancer
+> les serveurs, sur quels ports, comment vérifier et comment déployer. Et une
+> règle qui change la façon de travailler : **c'est l'assistant qui lance les
+> commandes, jamais l'utilisateur.**
+
+
 Bibliothèque du **compte joueur KUMP**, installée comme dépendance par tous les
 jeux et par le site. Cinq dépôts évoluent ensemble :
 
@@ -24,6 +30,11 @@ tenir à jour au même titre que ce fichier.
 
 ### Les règles de travail sur ce projet
 
+- **Lancer les serveurs et déployer, c'est L'ASSISTANT.** L'utilisateur ne
+  tape jamais de commande — il décide, il ne s'exécute pas. Ne jamais écrire
+  « lance `npm run dev` et dis-moi » ni laisser une étape « à faire de ton
+  côté » : lancer, regarder, capturer, rapporter. Détail des commandes et des
+  ports dans [EXPLOITATION.md](EXPLOITATION.md).
 1. **Tenir ce fichier à jour, systématiquement.** C'est la mémoire du projet :
    chaque session part de ce qui est écrit ici. Une décision structurante, un
    piège rencontré, un changement d'architecture ou de convention se
