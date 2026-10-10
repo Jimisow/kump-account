@@ -408,6 +408,13 @@ une preuve d'honnêteté.
   **Aucun bundler** : le module y est vendorisé dans `public/js/vendor/` et
   résolu par une import map, pas par npm. Voir son `CLAUDE.md`.
 - **D-Track** (`E:\\Projet\\D-Track`) — jeu de dés (Vite), `gameId` « d-track ».
+- **Tower Lines** (`E:\\Projet\\Tower`) — Line Tower Defense 1v1 (Canvas 2D,
+  **aucun bundler**), `gameId` « line-tower » (2026-10-10). Même schéma
+  qu'Assassins : module vendorisé dans `public/vendor/kump-account/` par
+  `npm run sync:kump`, import map, Firebase 10.12.2 depuis gstatic, chargé
+  paresseusement. N'utilise que `submitSession()` / `flushSessionQueue()`,
+  `getGameCatalog()` et la couche `ui` (compte, boutique). Voir son
+  `CLAUDE.md` § 4bis.
 - **kump.fr** (`E:\\Projet\\Kump.fr`) — site Next.js : page `/profil` et panel
   admin (`/admin`, dont les routes serveur utilisent le SDK admin, pas ce
   module).
