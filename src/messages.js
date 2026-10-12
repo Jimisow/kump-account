@@ -44,6 +44,7 @@ export const KUMP_MESSAGES = {
   'already-linked': 'Ce compte est déjà rattaché à votre profil.',
   'provider-disabled': "Cette connexion n'est pas encore disponible.",
   'popup-blocked': 'Votre navigateur a bloqué la fenêtre de connexion.',
+  'unauthorized-domain': "La connexion par Google n'est pas encore autorisée sur ce site. Utilisez l'email en attendant.",
   cancelled: '',
 
   // --- Boutique ---

@@ -61,6 +61,14 @@ tenir à jour au même titre que ce fichier.
    présenter comme vérifié ce qui ne l'a pas été.
 
 
+## Parties en ligne (0.5.0, 2026-10-12)
+
+Point d'entrée SÉPARÉ `kump-account/match` (`src/match.js`) : mise en relation (file d'attente, code ami) et salle à deux sur la **Realtime Database**
+du projet KUMP, règles dans `database.rules.json`. Premier consommateur : Tower Lines (lockstep). Pourquoi la RTDB (et pas Firestore ni un serveur
+dédié), le schéma et les pièges sont en tête de `match.js` ; doc d'usage : README > Parties en ligne. Piège déjà payé : une transaction RTDB est
+d'abord appelée avec la valeur LOCALE (souvent `null`) — renvoyer `undefined` à ce moment l'ANNULE sans jamais consulter le serveur ; il faut renvoyer
+`null` pour laisser le serveur rejouer avec la vraie valeur. `initKump({ emulators })` : développement uniquement (tests de bout en bout).
+
 ## L'objectif : installer, et n'avoir plus qu'à habiller
 
 C'est la promesse de ce module, et le critère qui tranche les débats de

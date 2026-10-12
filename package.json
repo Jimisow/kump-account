@@ -1,6 +1,6 @@
 {
   "name": "kump-account",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Compte joueur KUMP partagé entre tous les jeux et applications KUMP (identité, progression par jeu, trophées, temps de jeu, classements).",
   "type": "module",
   "main": "src/index.js",
@@ -12,12 +12,17 @@
     "./ui": {
       "types": "./src/ui/index.d.ts",
       "default": "./src/ui/index.js"
+    },
+    "./match": {
+      "types": "./src/match.d.ts",
+      "default": "./src/match.js"
     }
   },
   "files": [
     "src",
     "firestore.rules",
-    "README.md"
+    "README.md",
+    "database.rules.json"
   ],
   "peerDependencies": {
     "firebase": ">=10.12"

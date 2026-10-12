@@ -107,6 +107,14 @@ function mapProviderError(error) {
   }
   if (code.includes('popup-blocked')) return 'popup-blocked';
 
+  // Le DOMAINE de la page n'est pas dans Firebase → Authentication → Settings → Authorized domains. Erreur de
+  // CONFIGURATION, pas du joueur : sans ce code, il lisait « une erreur est survenue » (constaté le 2026-10-12 sur
+  // linetower.vercel.app). Le corriger se fait dans la console, aucune ligne de code n'y peut rien.
+  if (code.includes('unauthorized-domain')) {
+    console.error(`[kump] Domaine non autorisé pour la connexion Google/Apple : ${location.hostname} — à ajouter dans Firebase → Authentication → Settings → Authorized domains.`);
+    return 'unauthorized-domain';
+  }
+
   // ⚠️ TROIS SITUATIONS DISTINCTES, longtemps confondues sous un seul code
   // `already-linked`. Elles n'ont pas du tout la même sortie pour le joueur,
   // et les mélanger menait à une impasse : le message disait « ce compte est

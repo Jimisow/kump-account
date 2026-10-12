@@ -16,6 +16,8 @@ export interface KumpInitOptions {
   databaseId?: string;
   /** URL du serveur de validation des parties (ex. "https://www.kump.fr"). */
   apiBaseUrl?: string;
+  /** DÉVELOPPEMENT UNIQUEMENT : émulateurs Firebase (`auth: "http://127.0.0.1:9099"`, `firestore`/`database: "127.0.0.1:port"`). */
+  emulators?: { auth?: string; firestore?: string; database?: string };
 }
 
 export interface KumpRunResult {

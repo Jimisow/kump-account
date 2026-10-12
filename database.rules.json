@@ -1,0 +1,93 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "mm": {
+      "$game": {
+        "queue": {
+          ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'",
+          ".indexOn": ["at"],
+          "$uid": {
+            ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && (auth.uid === $uid || (data.exists() && !data.child('room').exists() && !data.child('busy').exists() && newData.child('by').val() === auth.uid && newData.child('room').isString() && newData.child('name').val() === data.child('name').val() && newData.child('at').val() === data.child('at').val() && newData.child('v').val() === data.child('v').val()))",
+            ".validate": "!newData.exists() || (newData.child('name').isString() && newData.child('name').val().length <= 24 && newData.child('v').isString() && newData.child('v').val().length <= 32)",
+            "name": { ".validate": "newData.isString()" },
+            "at": { ".validate": "newData.isNumber() && (newData.val() === data.val() || newData.val() <= now)" },
+            "v": { ".validate": "newData.isString()" },
+            "busy": { ".validate": "newData.isBoolean()" },
+            "room": { ".validate": "newData.isString() && newData.val().length <= 40" },
+            "by": { ".validate": "newData.isString()" },
+            "$other": { ".validate": false }
+          }
+        },
+        "codes": {
+          "$code": {
+            ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'",
+            ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && $code.matches(/^[A-Z2-9]{4}$/) && ((!data.exists() && newData.child('host').val() === auth.uid) || (data.exists() && data.child('host').val() === auth.uid && !newData.exists()) || (data.exists() && !data.child('guest').exists() && data.child('host').val() !== auth.uid && newData.child('guest').val() === auth.uid && newData.child('host').val() === data.child('host').val() && newData.child('name').val() === data.child('name').val() && newData.child('v').val() === data.child('v').val() && newData.child('room').isString()))",
+            "host": { ".validate": "newData.isString()" },
+            "name": { ".validate": "newData.isString() && newData.val().length <= 24" },
+            "at": { ".validate": "newData.isNumber()" },
+            "v": { ".validate": "newData.isString() && newData.val().length <= 32" },
+            "guest": { ".validate": "newData.isString()" },
+            "gname": { ".validate": "newData.isString() && newData.val().length <= 24" },
+            "room": { ".validate": "newData.isString() && newData.val().length <= 40" },
+            "$other": { ".validate": false }
+          }
+        }
+      }
+    },
+
+    "rooms": {
+      "$game": {
+        "$room": {
+          ".read": "auth != null && (data.child('meta/p0').val() === auth.uid || data.child('meta/p1').val() === auth.uid)",
+          ".write": "auth != null && !newData.exists() && (data.child('meta/p0').val() === auth.uid || data.child('meta/p1').val() === auth.uid)",
+
+          "meta": {
+            ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && !data.exists() && newData.child('p1').val() === auth.uid && newData.child('p0').val() !== auth.uid && ((root.child('mm/' + $game + '/queue/' + newData.child('p0').val() + '/room').val() === $room && root.child('mm/' + $game + '/queue/' + newData.child('p0').val() + '/by').val() === auth.uid) || (newData.child('code').isString() && root.child('mm/' + $game + '/codes/' + newData.child('code').val() + '/room').val() === $room && root.child('mm/' + $game + '/codes/' + newData.child('code').val() + '/guest').val() === auth.uid && root.child('mm/' + $game + '/codes/' + newData.child('code').val() + '/host').val() === newData.child('p0').val()))",
+            ".validate": "newData.hasChildren(['p0', 'p1', 'n0', 'n1', 'seed', 'v', 'at'])",
+            "p0": { ".validate": "newData.isString()" },
+            "p1": { ".validate": "newData.isString()" },
+            "n0": { ".validate": "newData.isString() && newData.val().length <= 24" },
+            "n1": { ".validate": "newData.isString() && newData.val().length <= 24" },
+            "seed": { ".validate": "newData.isNumber()" },
+            "v": { ".validate": "newData.isString() && newData.val().length <= 32" },
+            "at": { ".validate": "newData.isNumber()" },
+            "code": { ".validate": "newData.isString()" },
+            "$other": { ".validate": false }
+          },
+
+          "t": {
+            "$seat": {
+              "$i": {
+                ".write": "auth != null && !data.exists() && root.child('rooms/' + $game + '/' + $room + '/meta/p' + $seat).val() === auth.uid",
+                ".validate": "newData.isString() && newData.val().length <= 4000 && $i.matches(/^[0-9]{1,6}$/)"
+              }
+            }
+          },
+          "hash": {
+            "$seat": {
+              "$i": {
+                ".write": "auth != null && root.child('rooms/' + $game + '/' + $room + '/meta/p' + $seat).val() === auth.uid",
+                ".validate": "newData.isString() && newData.val().length <= 64 && $i.matches(/^[0-9]{1,6}$/)"
+              }
+            }
+          },
+          "ready": {
+            "$seat": {
+              ".write": "auth != null && root.child('rooms/' + $game + '/' + $room + '/meta/p' + $seat).val() === auth.uid",
+              ".validate": "newData.isBoolean()"
+            }
+          },
+          "presence": {
+            "$seat": {
+              ".write": "auth != null && root.child('rooms/' + $game + '/' + $room + '/meta/p' + $seat).val() === auth.uid",
+              ".validate": "newData.isBoolean()"
+            }
+          },
+          "$other": { ".validate": false }
+        }
+      }
+    }
+  }
+}

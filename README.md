@@ -259,6 +259,38 @@ Le module ne fusionne JAMAIS deux comptes automatiquement : il faudrait
 choisir quelle progression garder, ce qu'aucun code ne peut décider à la place
 du joueur.
 
+## Parties en ligne à deux (`kump-account/match`)
+
+Point d'entrée **séparé** : il tire le SDK Realtime Database (`firebase/database`), qu'un jeu sans multijoueur n'a pas à
+télécharger — `index.js` ne l'importe pas. Premier consommateur : Tower Lines (lockstep déterministe).
+
+```js
+import { matchAccount, quickMatch, hostFriendMatch, joinFriendMatch } from 'kump-account/match';
+
+const acc = await matchAccount();          // { ok, uid, name } ou { ok: false, reason: 'guest' | 'signed-out' | 'no-database' | 'not-ready' }
+const q = quickMatch({ version: 'mon-jeu-1.0' });          // file d'attente : { promise, cancel }
+const h = await hostFriendMatch({ version: 'mon-jeu-1.0' }); // { code: 'K7PX', promise, cancel } — code à transmettre à l'ami
+const room = await joinFriendMatch('K7PX', { version: 'mon-jeu-1.0' });
+
+room.seat; room.seed; room.names;           // siège local (0 = hôte / joueur qui attendait), graine partagée, pseudos
+room.sendTurn(i, 'texte'); room.onTurn((i, texte) => …);   // messages numérotés de l'adversaire (le module ne les interprète pas)
+room.sendHash(i, h); room.onHash((i, h) => …);             // empreintes d'état (détection de désynchronisation)
+room.setReady(); room.onBothReady(() => …);                // départ synchronisé
+room.onOpponentPresence((enLigne) => …);                   // déconnexion de l'adversaire (posée par le SERVEUR)
+await room.leave();                                        // le dernier sorti supprime la salle
+```
+
+- **Compte RÉEL obligatoire** (email ou Google) : un compte anonyme est refusé par les règles (`sign_in_provider`), et
+  `matchAccount()` le dit au jeu avant toute tentative pour qu'il propose l'écran de compte.
+- **`version`** : seuls deux clients de même version se rencontrent (file et code). Un jeu en lockstep doit la changer à chaque
+  modification de sa simulation, sinon les deux parties divergent.
+- **Config** : `databaseURL` doit figurer dans la config Firebase passée à `initKump()` (`https://kump-812dd-default-rtdb.firebaseio.com`).
+- **Règles** : `database.rules.json`, déployées d'ici : `firebase deploy --only database --project kump-812dd`. File : chacun écrit son
+  entrée, un autre ne peut que la « réclamer » une fois (champ `room`) ; salle : `meta` écrite une seule fois par le joueur qui a réclamé
+  (vérifié contre l'entrée de file ou le code), lecture et écriture réservées aux deux joueurs ; messages non réécrivables, ≤ 4000 caractères.
+- **Développement** : `initKump({ …, emulators: { auth, firestore, database } })` branche le module sur les émulateurs Firebase
+  (jamais en production) — c'est ainsi que Tower teste le multijoueur de bout en bout (`tools/e2e-online.mjs`).
+
 ## Schéma Firestore
 
 ```

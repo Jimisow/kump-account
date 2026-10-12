@@ -3,8 +3,8 @@
 // crée l'app Firebase : tous les autres fichiers lisent ce contexte.
 
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getAuth, connectAuthEmulator } from 'firebase/auth';
+import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 
 const state = {
   app: null,
@@ -15,6 +15,8 @@ const state = {
   // faire valider ses parties : elles resteront en file d'attente locale
   // jusqu'a ce qu'elle soit renseignee.
   apiBaseUrl: null,
+  // Émulateurs Firebase (DÉVELOPPEMENT uniquement : tests de bout en bout sans toucher à la production).
+  emulators: null,
   ready: false,
 };
 
@@ -30,11 +32,16 @@ const state = {
  *                                          progression de tous les joueurs de ce jeu.
  * @param {string} [options.databaseId]     Base Firestore nommée, si le projet n'utilise
  *                                          pas la base "(default)".
+ * @param {{auth?: string, firestore?: string, database?: string}} [options.emulators]
+ *                                          DÉVELOPPEMENT UNIQUEMENT : branche le module sur les émulateurs
+ *                                          Firebase (`auth: 'http://127.0.0.1:9099'`, `firestore: '127.0.0.1:8080'`,
+ *                                          `database: '127.0.0.1:9000'`). Jamais en production : un jeu ne doit
+ *                                          le passer que sur un paramètre de debug explicite.
  * @returns {boolean} `true` si le module est utilisable, `false` si la config est
  *                    incomplète (le jeu doit alors continuer à tourner en mode
  *                    hors-ligne, voir README > Dégradation).
  */
-export function initKump({ firebaseConfig, gameId, databaseId, apiBaseUrl } = {}) {
+export function initKump({ firebaseConfig, gameId, databaseId, apiBaseUrl, emulators } = {}) {
   if (state.ready) return true;
 
   // `gameId` est obligatoire pour un JEU, optionnel pour un client qui ne
@@ -62,6 +69,12 @@ export function initKump({ firebaseConfig, gameId, databaseId, apiBaseUrl } = {}
   state.app = existing ?? initializeApp(firebaseConfig, 'kump');
   state.auth = getAuth(state.app);
   state.db = databaseId ? getFirestore(state.app, databaseId) : getFirestore(state.app);
+  if (emulators?.auth) connectAuthEmulator(state.auth, emulators.auth, { disableWarnings: true });
+  if (emulators?.firestore) {
+    const [host, port] = emulators.firestore.split(':');
+    connectFirestoreEmulator(state.db, host, Number(port));
+  }
+  state.emulators = emulators ?? null;
   state.gameId = gameId;
   // Sans slash final : les chemins appeles commencent tous par '/'.
   state.apiBaseUrl = apiBaseUrl ? String(apiBaseUrl).replace(/\/$/, '') : null;
