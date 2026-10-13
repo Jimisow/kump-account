@@ -24,7 +24,6 @@
 // les règles le refusent (`sign_in_provider != 'anonymous'`), et `matchAccount()` le dit au jeu avant toute tentative.
 
 import {
-  getDatabase,
   ref,
   child,
   get,
@@ -40,42 +39,20 @@ import {
   runTransaction,
   serverTimestamp,
   onDisconnect,
-  connectDatabaseEmulator,
 } from 'firebase/database';
-import { getKumpContext, requireReady, getGameId } from './core.js';
-import { getProfile } from './profile.js';
+import { getGameId } from './core.js';
+import { rtdb as db, realAccount } from './rtdb.js';
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // sans I, O, 0, 1 : se dicte sans ambiguïté
 const SCAN_EVERY_MS = 2000; // fréquence à laquelle un joueur en file cherche un adversaire plus ancien que lui
 const META_RETRY_MS = 250; // la salle est écrite juste après la réclamation : on la relit quelques fois
 
-let database = null;
-function db() {
-  const { app, emulators } = getKumpContext();
-  if (!database) {
-    database = getDatabase(app); // URL : `databaseURL` de la config Firebase passée à initKump()
-    if (emulators?.database) {
-      const [host, port] = emulators.database.split(':');
-      connectDatabaseEmulator(database, host, Number(port)); // développement : émulateur local
-    }
-  }
-  return database;
-}
-
 /**
  * Le joueur peut-il jouer en ligne ?
  * @returns {Promise<{ok: true, uid: string, name: string} | {ok: false, reason: 'not-ready'|'no-database'|'signed-out'|'guest'}>}
  */
-export async function matchAccount() {
-  if (!requireReady('matchAccount')) return { ok: false, reason: 'not-ready' };
-  const { app, auth } = getKumpContext();
-  if (!app.options.databaseURL) return { ok: false, reason: 'no-database' };
-  await auth.authStateReady?.(); // au chargement, la session persistée n'est pas encore restaurée : currentUser vaudrait null
-  const user = auth.currentUser;
-  if (!user) return { ok: false, reason: 'signed-out' };
-  if (user.isAnonymous) return { ok: false, reason: 'guest' };
-  const profile = await getProfile();
-  return { ok: true, uid: user.uid, name: String(profile?.displayName ?? 'Joueur').slice(0, 24) };
+export function matchAccount() {
+  return realAccount('matchAccount'); // même exigence que les amis : compte réel (rtdb.js)
 }
 
 /**

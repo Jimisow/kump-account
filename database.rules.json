@@ -37,6 +37,121 @@
       }
     },
 
+    "social": {
+      "profiles": {
+        ".read": "auth != null",
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid && auth.token.firebase.sign_in_provider != 'anonymous'",
+          ".validate": "newData.hasChildren(['name', 'code', 'at'])",
+          "name": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 24" },
+          "code": { ".validate": "newData.isString() && newData.parent().parent().parent().child('codes').child(newData.val()).val() === $uid" },
+          "avatar": {
+            ".validate": "newData.hasChildren(['game', 'id'])",
+            "game": { ".validate": "newData.isString() && newData.val().matches(/^[a-z0-9-]{1,40}$/)" },
+            "id": { ".validate": "newData.isString() && newData.val().matches(/^[A-Za-z0-9_-]{1,24}$/)" },
+            "$other": { ".validate": false }
+          },
+          "at": { ".validate": "newData.isNumber() && newData.val() <= now" },
+          "$other": { ".validate": false }
+        }
+      },
+      "codes": {
+        "$code": {
+          ".read": "auth != null",
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && ((!data.exists() && newData.val() === auth.uid) || (data.val() === auth.uid && !newData.exists()))",
+          ".validate": "$code.matches(/^[A-Z2-9]{6}$/) && newData.isString()"
+        }
+      },
+      "requests": {
+        "$to": {
+          ".read": "auth != null && auth.uid === $to",
+          "$from": {
+            ".read": "auth != null && auth.uid === $from",
+            ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && ((auth.uid === $from && $from !== $to && !data.exists() && newData.exists() && !root.child('social/friends/' + $to + '/' + $from).exists() && root.child('social/profiles/' + $to).exists()) || (!newData.exists() && (auth.uid === $to || auth.uid === $from)))",
+            ".validate": "newData.hasChildren(['name', 'at'])",
+            "name": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 24" },
+            "at": { ".validate": "newData.isNumber() && newData.val() <= now" },
+            "$other": { ".validate": false }
+          }
+        }
+      },
+      "friends": {
+        "$uid": {
+          ".read": "auth != null && auth.uid === $uid",
+          "$friend": {
+            ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && $uid !== $friend && ((newData.val() === true && ((auth.uid === $uid && (root.child('social/requests/' + $uid + '/' + $friend).exists() || root.child('social/friends/' + $friend + '/' + $uid).exists())) || (auth.uid === $friend && root.child('social/requests/' + $friend + '/' + $uid).exists()))) || (!newData.exists() && (auth.uid === $uid || auth.uid === $friend)))",
+            ".validate": "newData.val() === true"
+          }
+        }
+      },
+      "presence": {
+        "$uid": {
+          ".read": "auth != null && (auth.uid === $uid || root.child('social/friends/' + $uid + '/' + auth.uid).exists())",
+          ".write": "auth != null && auth.uid === $uid && auth.token.firebase.sign_in_provider != 'anonymous'",
+          ".validate": "newData.hasChildren(['state', 'game', 'gameName', 'at'])",
+          "state": { ".validate": "newData.val() === 'online' || newData.val() === 'offline'" },
+          "game": { ".validate": "newData.isString() && newData.val().matches(/^[a-z0-9-]{1,40}$/)" },
+          "gameName": { ".validate": "newData.isString() && newData.val().length <= 40" },
+          "status": { ".validate": "newData.val() === 'menu' || newData.val() === 'playing'" },
+          "at": { ".validate": "newData.isNumber() && newData.val() <= now" },
+          "$other": { ".validate": false }
+        }
+      },
+      "invites": {
+        "$to": {
+          ".read": "auth != null && auth.uid === $to",
+          "$id": {
+            ".write": "auth != null && ((!data.exists() && auth.token.firebase.sign_in_provider != 'anonymous' && newData.child('from').val() === auth.uid && root.child('social/friends/' + $to + '/' + auth.uid).exists()) || (data.exists() && !newData.exists() && (auth.uid === $to || data.child('from').val() === auth.uid)))",
+            ".validate": "newData.hasChildren(['from', 'name', 'game', 'gameName', 'url', 'at'])",
+            "from": { ".validate": "newData.isString()" },
+            "name": { ".validate": "newData.isString() && newData.val().length <= 24" },
+            "game": { ".validate": "newData.isString() && newData.val().matches(/^[a-z0-9-]{1,40}$/)" },
+            "gameName": { ".validate": "newData.isString() && newData.val().length <= 40" },
+            "url": { ".validate": "newData.isString() && newData.val().length <= 300 && (newData.val().matches(/^https:\\/\\/(linetower\\.vercel\\.app|androgame\\.vercel\\.app|assassins\\.kump\\.fr|dtrack\\.kump\\.fr|www\\.kump\\.fr)(\\/.*)?$/) || newData.val().matches(/^http:\\/\\/(localhost|127\\.0\\.0\\.1)(:[0-9]+)?(\\/.*)?$/))" },
+            "code": { ".validate": "newData.isString() && newData.val().matches(/^[A-Z2-9]{4}$/)" },
+            "at": { ".validate": "newData.isNumber() && newData.val() <= now" },
+            "$other": { ".validate": false }
+          }
+        }
+      },
+      "replies": {
+        "$from": {
+          ".read": "auth != null && auth.uid === $from",
+          "$id": {
+            ".write": "auth != null && ((newData.exists() && newData.child('by').val() === auth.uid && root.child('social/friends/' + $from + '/' + auth.uid).exists()) || (!newData.exists() && auth.uid === $from))",
+            ".validate": "newData.hasChildren(['answer', 'by', 'at'])",
+            "answer": { ".validate": "newData.val() === 'accepted' || newData.val() === 'declined'" },
+            "by": { ".validate": "newData.isString()" },
+            "at": { ".validate": "newData.isNumber() && newData.val() <= now" },
+            "$other": { ".validate": false }
+          }
+        }
+      },
+      "chats": {
+        "$pair": {
+          ".read": "auth != null && ($pair.beginsWith(auth.uid + '_') || $pair.endsWith('_' + auth.uid))",
+          "$msg": {
+            ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && !data.exists() && newData.exists() && ($pair.beginsWith(auth.uid + '_') || $pair.endsWith('_' + auth.uid)) && $pair.replace(auth.uid + '_', '').replace('_' + auth.uid, '').length > 0 && $pair.replace(auth.uid + '_', '').replace('_' + auth.uid, '') !== auth.uid && root.child('social/friends/' + auth.uid + '/' + $pair.replace(auth.uid + '_', '').replace('_' + auth.uid, '')).exists()",
+            ".validate": "newData.hasChildren(['from', 'text', 'at'])",
+            "from": { ".validate": "newData.val() === auth.uid" },
+            "text": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 300" },
+            "at": { ".validate": "newData.isNumber() && newData.val() <= now" },
+            "$other": { ".validate": false }
+          }
+        }
+      },
+      "unread": {
+        "$uid": {
+          ".read": "auth != null && auth.uid === $uid",
+          "$friend": {
+            ".read": "auth != null && auth.uid === $friend",
+            ".write": "auth != null && ((auth.uid === $uid && !newData.exists()) || (auth.uid === $friend && root.child('social/friends/' + $uid + '/' + $friend).exists() && ((!data.exists() && newData.val() === 1) || (data.exists() && newData.val() === data.val() + 1))))",
+            ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 999"
+          }
+        }
+      }
+    },
+
     "rooms": {
       "$game": {
         "$room": {

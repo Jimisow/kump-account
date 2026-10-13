@@ -291,6 +291,47 @@ await room.leave();                                        // le dernier sorti s
 - **Développement** : `initKump({ …, emulators: { auth, firestore, database } })` branche le module sur les émulateurs Firebase
   (jamais en production) — c'est ainsi que Tower teste le multijoueur de bout en bout (`tools/e2e-online.mjs`).
 
+## Amis KUMP (`kump-account/social`, 0.6.0)
+
+Amis communs à TOUS les jeux KUMP : code ami, demandes, liste en direct avec présence (« En ligne · Line Tower War », « En partie »),
+chat, invitations — y compris d'un jeu à l'autre (un joueur sur Androgame invité depuis Line Tower War se voit proposer de changer de
+jeu). Point d'entrée **séparé** (il tire `firebase/database`, comme `match`). Écrans prêts à l'emploi, habillés par les mêmes variables
+`--kump-*` que le compte et la boutique.
+
+```js
+import { startKumpSocial, openKumpFriends } from 'kump-account/social';
+
+// Au lancement (compte réel seulement : renvoie null sinon, sans rien créer)
+const social = await startKumpSocial({
+  gameName: 'Mon Jeu',                            // affiché chez les amis : « En ligne · Mon Jeu »
+  avatar: { game: 'mon-jeu', id: 'av12' },        // facultatif : voir registerAvatarSet()
+  onBadge: (n) => majPastilleDuBoutonAmis(n),     // messages non lus + demandes reçues
+  onJoin: (invite) => false,                      // invitation acceptée POUR CE JEU : true si le jeu la gère sans recharger
+});
+social?.setStatus('playing');                     // pendant une partie (« En partie » chez les amis)
+
+// Bouton « Amis »
+openKumpFriends({
+  gameName: 'Mon Jeu',
+  onInvite: async (ami) => { … },                 // facultatif : sans lui, « Inviter » envoie une invitation vers la page en cours
+  onAccount: () => openKumpAccount(),             // joueur invité / déconnecté : bouton « Mon compte KUMP »
+});
+```
+
+- **Compte RÉEL obligatoire** (email ou Google), comme le multijoueur : un compte anonyme n'a pas de pseudo choisi et disparaît avec
+  l'appareil. `startKumpSocial()` renvoie `null` ; le panneau propose « Mon compte KUMP ».
+- **Invitations** : `{ url, gameName, [code] }`. L'`url` doit être sur un domaine KUMP connu (`INVITE_HOSTS`, vérifié AUSSI par les
+  règles) — un « ami » ne peut pas envoyer quelqu'un sur un site de hameçonnage. Accepter ouvre `url` (ou appelle `onJoin` si c'est le
+  même jeu). Un jeu avec multijoueur y met un code de partie `kump-account/match` (Tower : `?play=online&join=CODE`).
+- **Avatars** : chaque jeu publie `{ game, id }` ; les autres jeux l'affichent grâce à `registerAvatarSet(game, { src, cols, rows })`
+  (atlas en grille, `avNN` = case NN − 1). Line Tower War est déclaré par défaut.
+- **Chargement paresseux** : `SOCIAL_MEMBER_KEY` (`localStorage['kump.socialMember']`) est posé tant qu'un compte réel utilise les amis
+  sur l'appareil — un jeu peut le lire SANS charger le module pour décider de démarrer la présence au lancement.
+- **Règles** : `database.rules.json`, section `social` (déployées d'ici). Amitié écrite des deux côtés en une seule écriture, seulement
+  si une demande existe ; présence lisible par les seuls amis ; chat et invitations entre amis seulement ; compteurs de non-lus +1 à la fois.
+  Testées sur émulateur : `Tower/tools/test-social-rules.mjs` (66 vérifications) et `Tower/tools/e2e-social.mjs` (parcours complet).
+- **Limite assumée** : une seule présence par compte (plusieurs onglets / jeux ouverts : le dernier qui écrit gagne).
+
 ## Schéma Firestore
 
 ```

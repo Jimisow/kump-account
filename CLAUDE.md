@@ -69,6 +69,27 @@ dédié), le schéma et les pièges sont en tête de `match.js` ; doc d'usage : 
 d'abord appelée avec la valeur LOCALE (souvent `null`) — renvoyer `undefined` à ce moment l'ANNULE sans jamais consulter le serveur ; il faut renvoyer
 `null` pour laisser le serveur rejouer avec la vraie valeur. `initKump({ emulators })` : développement uniquement (tests de bout en bout).
 
+## Amis KUMP (0.6.0, 2026-10-14)
+
+Point d'entrée SÉPARÉ `kump-account/social` (`src/social/` : `api.js` = données et règles, `ui.js` = panneau d'amis, chat, carte
+d'invitation, notification ; `index.js`, `index.d.ts`). Schéma, décisions et limites en tête de `api.js` ; doc d'usage : README > Amis KUMP.
+Tout vit dans la **Realtime Database** (section `social` de `database.rules.json`) — PAS dans Firestore : la présence a besoin
+d'`onDisconnect` (exécuté par le serveur), chat et invitations d'écoutes en direct, et les règles Firestore du profil restent verrouillées.
+
+- `src/rtdb.js` : instance UNIQUE de la base + `realAccount()`, partagés par `match` et `social`. ⚠️ Ne pas recréer un `getDatabase()`
+  dans un module : `connectDatabaseEmulator()` lève s'il est appelé deux fois sur la même instance (les tests sur émulateur plantaient).
+- Pièges payés en écrivant les règles (2026-10-14), à ne pas défaire :
+  1. **Une transaction RTDB exige le droit de LIRE l'emplacement.** L'incrément des non-lus (`unread/{ami}/{moi}`) échouait en silence
+     tant que l'expéditeur ne pouvait pas lire SA case chez l'ami — d'où le `.read` à ce niveau.
+  2. **`$` et `^` ne s'écrivent qu'aux extrémités d'une regex de règle** (`(\/|$)` est refusé au chargement) : `(\/.*)?$`.
+  3. **Conversation avec soi-même** : `alice_alice` passait (l'autre joueur extrait était vide et le chemin `friends/alice/` retombait
+     sur `friends/alice`, qui existe). La règle exige maintenant un autre joueur non vide et différent de soi.
+- Tests (sur émulateur, rien en production) : `Tower/tools/test-social-rules.mjs` (66 vérifications : chaque autorisation ET chaque
+  refus) et `Tower/tools/e2e-social.mjs` (deux navigateurs : code, demande, acceptation, présence, chat, non-lus, invitations entre
+  jeux / refusée / acceptée → partie en ligne, avatar de l'adversaire).
+- Ajouter un jeu aux invitations = son domaine dans `INVITE_HOSTS` (api.js) ET dans la regex `social/invites/.../url` des règles, puis
+  redéployer les règles. Afficher ses avatars ailleurs = `registerAvatarSet()` (ou une entrée par défaut dans `AVATAR_SETS`, ui.js).
+
 ## L'objectif : installer, et n'avoir plus qu'à habiller
 
 C'est la promesse de ce module, et le critère qui tranche les débats de
@@ -411,7 +432,8 @@ une preuve d'honnêteté.
 ## Consommateurs actuels
 
 - **Androgame** (`E:\\Projet\\Androgame`) — jeu Phaser. Voir sa section
-  « Compte KUMP » dans son `CLAUDE.md`.
+  « Compte KUMP » dans son `CLAUDE.md`. Utilise aussi `social` (amis, bouton
+  du menu, invitations reçues d'autres jeux) depuis 0.6.0.
 - **Assassins** (`E:\\Projet\\Assassins`) — jeu social, `gameId` « assassins ».
   **Aucun bundler** : le module y est vendorisé dans `public/js/vendor/` et
   résolu par une import map, pas par npm. Voir son `CLAUDE.md`.
@@ -420,9 +442,10 @@ une preuve d'honnêteté.
   **aucun bundler**), `gameId` « line-tower » (2026-10-10). Même schéma
   qu'Assassins : module vendorisé dans `public/vendor/kump-account/` par
   `npm run sync:kump`, import map, Firebase 10.12.2 depuis gstatic, chargé
-  paresseusement. N'utilise que `submitSession()` / `flushSessionQueue()`,
-  `getGameCatalog()` et la couche `ui` (compte, boutique). Voir son
-  `CLAUDE.md` § 4bis.
+  paresseusement. Utilise `submitSession()` / `flushSessionQueue()`,
+  `getGameCatalog()`, la couche `ui` (compte, boutique), `match`
+  (multijoueur) et `social` (amis, invitations à une partie en ligne, avatar
+  public). Voir son `CLAUDE.md` § 4bis.
 - **kump.fr** (`E:\\Projet\\Kump.fr`) — site Next.js : page `/profil` et panel
   admin (`/admin`, dont les routes serveur utilisent le SDK admin, pas ce
   module).
