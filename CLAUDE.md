@@ -436,8 +436,10 @@ une preuve d'honnêteté.
   du menu, invitations reçues d'autres jeux) depuis 0.6.0.
 - **Assassins** (`E:\\Projet\\Assassins`) — jeu social, `gameId` « assassins ».
   **Aucun bundler** : le module y est vendorisé dans `public/js/vendor/` et
-  résolu par une import map, pas par npm. Voir son `CLAUDE.md`.
-- **D-Track** (`E:\\Projet\\D-Track`) — jeu de dés (Vite), `gameId` « d-track ».
+  résolu par une import map, pas par npm. Voir son `CLAUDE.md`. Amis KUMP
+  (`social`) depuis le 2026-10-14 : accueil, hôte (« Inviter » → `?join=CODE`), joueur.
+- **D-Track** (`E:\\Projet\\D-Track`) — jeu de dés (Vite), `gameId` « d-track ». Amis KUMP
+  (`social`) depuis le 2026-10-14 : bouton de l'accueil, « Inviter » crée / réutilise un salon (`?join=CODE`).
 - **Tower Lines** (`E:\\Projet\\Tower`) — Line Tower Defense 1v1 (Canvas 2D,
   **aucun bundler**), `gameId` « line-tower » (2026-10-10). Même schéma
   qu'Assassins : module vendorisé dans `public/vendor/kump-account/` par
