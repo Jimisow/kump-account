@@ -201,12 +201,13 @@ export function openKumpFriends(options = {}) {
 
   function showGate(reason) {
     view = { name: 'gate' };
-    body.replaceChildren(
+    // ⚠️ `replaceChildren(null)` insère le TEXTE « null » : les éléments facultatifs sont filtrés avant.
+    body.replaceChildren(...[
       el('p', { class: 'kump-intro' }, t(reason in SOCIAL_TEXT ? reason : 'error')),
       options.onAccount && (reason === 'guest' || reason === 'signed-out')
         ? el('button', { class: 'kump-btn kump-btn-primary kump-btn-block', onclick: () => { dialog.close(); options.onAccount(); } }, t('account'))
         : null,
-    );
+    ].filter(Boolean));
   }
 
   function showList(code) {
