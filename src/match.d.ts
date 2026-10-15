@@ -40,3 +40,66 @@ export class MatchRoom {
   onOpponentPresence(cb: (online: boolean) => void): void;
   leave(): Promise<void>;
 }
+
+// ---------------------------------------------------------------- SALONS (3-5 places, 0.7.0) — voir README > Salons en ligne
+
+export type SalonErrorCode = MatchErrorCode | 'salon-closed' | 'not-host';
+
+export interface SalonMember {
+  uid: string;
+  name: string;
+  avatar?: string;
+}
+
+export interface SalonStart {
+  seed: number;
+  n: number;
+  /** Un uid par place, `null` pour une place d'IA. */
+  seats: (string | null)[];
+  /** La composition du jeu, telle que l'hôte l'a donnée à `start`. */
+  cfg: string;
+  /** Ma place (`-1` : je n'en ai pas). */
+  seat: number;
+}
+
+export function hostSalon(opts: { version: string; avatar?: string }): Promise<SalonRoom>;
+export function joinSalon(code: string, opts: { version: string; avatar?: string }): Promise<SalonRoom>;
+
+export class SalonRoom {
+  readonly roomId: string;
+  readonly uid: string;
+  readonly name: string;
+  readonly code: string;
+  readonly hostUid: string;
+  readonly isHost: boolean;
+  readonly version: string;
+  /** Renseignés au départ (`onStart`). */
+  readonly seat: number | null;
+  readonly seats: (string | null)[] | null;
+  readonly seed: number | null;
+  readonly cfg: string | null;
+  readonly started: boolean;
+  readonly humanSeats: number[];
+  connectPresence(): Promise<void>;
+  // le salon, avant le départ
+  onMembers(cb: (members: SalonMember[]) => void): void;
+  onLobby(cb: (text: string | null) => void): void;
+  publishLobby(text: string): Promise<void>;
+  setProfile(profile: { name?: string; avatar?: string }): Promise<void>;
+  kick(uid: string): Promise<void>;
+  onClosed(cb: () => void): void;
+  onKicked(cb: () => void): void;
+  start(opts: { seed: number; seats: (string | null)[]; cfg: string }): Promise<void>;
+  onStart(cb: (start: SalonStart) => void): void;
+  // la partie
+  setReady(): Promise<void>;
+  onAllReady(cb: () => void): void;
+  sendTurn(index: number, payload: string): Promise<void>;
+  onTurn(cb: (seat: number, index: number, payload: string) => void): void;
+  sendHash(index: number, hash: string): Promise<void>;
+  onHash(cb: (seat: number, index: number, hash: string) => void): void;
+  onPeerPresence(cb: (seat: number, online: boolean) => void): void;
+  announceDrop(seat: number, turn: number): Promise<void>;
+  onDrop(cb: (seat: number, turn: number) => void): void;
+  leave(): Promise<void>;
+}

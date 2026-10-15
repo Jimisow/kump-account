@@ -390,3 +390,47 @@ Deux façons de les créer :
 
 Un jeu qui trie son classement sur d'autres champs que ceux d'Androgame devra
 ajouter son propre couple d'index.
+
+## Salons en ligne (0.7.0) — `kump-account/match`
+
+Parties à **3-5 places** (humains + IA du jeu), dans le même point d'entrée que le 1 contre 1 (`hostSalon`, `joinSalon`, `SalonRoom`). Le module ne connaît rien des règles du jeu : il met des joueurs dans une
+salle, leur fait partager une **composition** (une chaîne que le jeu remplit) et relaie des messages numérotés ; le jeu y branche son lockstep.
+
+```js
+import { hostSalon, joinSalon } from 'kump-account/match';
+
+const room = await hostSalon({ version: 'tower-2.3', avatar: 'av05' });   // hôte : crée la salle et un CODE de 4 caractères (room.code)
+const guest = await joinSalon('K7PX', { version: 'tower-2.3' });          // invité : rejoint par le code (saisi ou reçu dans une invitation d'ami)
+
+room.onMembers((members) => …);        // [{ uid, name, avatar? }] : l'hôte d'abord, puis par ordre d'arrivée
+room.publishLobby(JSON.stringify(…));  // HÔTE : la composition (≤ 3000 caractères) ; guest.onLobby(text => …) la reçoit
+room.kick(uid);                        // HÔTE : retire un membre ; le retiré reçoit onKicked
+room.onClosed(() => …);                // le salon a été fermé (l'hôte est parti ou déconnecté) — avant le départ seulement
+await room.start({ seed, seats: [uidHôte, null, uidBob], cfg });   // HÔTE : lance. `null` = place d'IA. Le code est retiré (plus personne ne rejoint).
+room.onStart(({ seed, n, seats, cfg, seat }) => …);                // chacun reçoit SA place (`seat`, −1 si aucune)
+
+// pendant la partie (places humaines uniquement) :
+room.setReady(); room.onAllReady(cb);                  // départ synchronisé
+room.sendTurn(i, payload); room.onTurn((seat, i, payload) => …);   // messages numérotés, jamais réécrits ; on reçoit ceux des AUTRES places
+room.sendHash(i, h);       room.onHash((seat, i, h) => …);
+room.onPeerPresence((seat, online) => …);              // présence des autres places humaines
+room.announceDrop(seat, turn); room.onDrop((seat, turn) => …);     // HÔTE : « cette place n'est plus attendue à partir du tour `turn` »
+await room.leave();        // invité : s'efface ; hôte avant le départ : ferme le salon ; en partie : le dernier sorti supprime la salle
+```
+
+Schéma (règles : `database.rules.json`, **à déployer depuis ce dépôt** : `firebase deploy --only database --project kump-812dd`) :
+
+```
+mm/{jeu}/salons/{CODE}                 { host, name, room, at, v }       annuaire des codes (lecture : comptes réels)
+salons/{jeu}/{salle}/meta              { host, name, v, at, code }       écrite une fois par l'hôte, liée à son code
+salons/{jeu}/{salle}/members/{uid}     { name, avatar?, at }             inscription (le code est vérifié par les règles) ; l'hôte peut retirer
+salons/{jeu}/{salle}/lobby             chaîne ≤ 3000                     composition (hôte seul)
+salons/{jeu}/{salle}/start             { seed, n, at, cfg, seats:{s0..s4: uid} }   le départ (une fois, hôte seul)
+salons/{jeu}/{salle}/t|hash/{place}/{i}, ready/{place}, presence/{uid}, drops/{place}
+```
+
+Pièges (vérifiés sur l'émulateur) :
+- un membre RETIRÉ (ou un salon supprimé) **perd le droit de lecture** : Firebase annule l'écoute au lieu de livrer « vide » — `onKicked` / `onClosed` traitent l'annulation comme l'événement ;
+- avant le départ l'hôte pose un `onDisconnect` qui supprime la salle (un hôte qui plante ne laisse pas de salon orphelin) ; `start()` l'annule ;
+- après le départ la salle survit à l'hôte : l'arbitrage des absences (`announceDrop`) et les IA sont l'affaire du jeu (Tower : data/adapters/SalonAdapter.js) ;
+- tests : `node tools/test-salon-rules.mjs` (règles, 84 vérifications) et `tools/_staging/test-salon-module.mjs` dans le dépôt de Tower (émulateur de la base, Java 8 suffit).

@@ -385,3 +385,340 @@ function matchError(code) {
   err.code = code;
   return err;
 }
+
+// ====================================================================================================================
+// SALONS : parties EN LIGNE à 3-5 joueurs (humains + IA du jeu). Ajouté en 0.7.0 — le 1 contre 1 ci-dessus n'a pas bougé.
+//
+// Un salon est une salle `salons/{jeu}/{salle}` qui sert aux DEUX temps de la partie :
+//  1. LE SALON (avant le départ) : l'hôte crée la salle et un CODE de 4 caractères (`mm/{jeu}/salons/{CODE}`, joint à la main ou par une
+//     invitation d'ami) ; chaque invité s'y inscrit (`members/{uid}`) ; l'hôte publie la composition (`lobby`, une chaîne que le module ne
+//     lit pas : le jeu y met ses places, ses IA, ses réglages) ; il peut retirer un membre ;
+//  2. LA PARTIE : l'hôte écrit `start` (graine, nombre de places, uid de chaque place humaine, copie de la composition) ; chaque place
+//     humaine échange alors des messages numérotés (`t/{place}/{i}`) comme dans une salle à deux — mais avec N places.
+//
+//   salons/{jeu}/{salle}/meta       { host, name, v, at, code }      écrite une fois par l'hôte
+//   salons/{jeu}/{salle}/members/{uid}   { name, avatar?, at }       l'inscription de chacun (lui seul, ou l'hôte pour retirer)
+//   salons/{jeu}/{salle}/lobby      chaîne ≤ 3000                    composition, écrite par l'hôte
+//   salons/{jeu}/{salle}/start      { seed, n, at, cfg, seats:{s0..s4: uid} }   le départ (une fois) ; les places IA n'ont pas de uid
+//   salons/{jeu}/{salle}/t|hash/{place}/{i}, ready/{place}, presence/{uid}, drops/{place}
+//
+// ⚠️ L'ABSENCE d'un joueur en pleine partie est l'affaire du JEU (lockstep) : `announceDrop` / `onDrop` lui donnent le moyen de décider,
+// avec l'hôte comme arbitre, qu'une place n'est plus attendue à partir d'un tour donné.
+// ====================================================================================================================
+
+export const SALON_MAX_SEATS = 5;
+
+// Quand la salle disparaît, les écoutes encore actives perdent leur droit de lecture : Firebase les annule et journalise une erreur si rien ne la reçoit. Sans conséquence ici.
+const quiet = () => {};
+
+const memberValue = (name, avatar) => ({
+  name: String(name ?? 'Joueur').slice(0, 24),
+  ...(typeof avatar === 'string' && avatar ? { avatar: avatar.slice(0, 24) } : {}),
+  at: serverTimestamp(),
+});
+
+/**
+ * HÔTE : crée le salon et son code. Le salon se ferme (et disparaît) si l'hôte se déconnecte avant le départ.
+ * @param {{version: string, avatar?: string}} opts  `avatar` : identifiant d'avatar du jeu, montré aux autres membres
+ * @returns {Promise<SalonRoom>}
+ */
+export async function hostSalon({ version, avatar = '' }) {
+  const acc = await matchAccount();
+  if (!acc.ok) throw matchError(acc.reason);
+  const game = getGameId();
+  const database = db();
+  const roomId = push(ref(database, `salons/${game}`)).key;
+  let code = '';
+  let codeRef = null;
+  for (let attempt = 0; attempt < 8 && !codeRef; attempt++) {
+    code = randomCode();
+    const r = ref(database, `mm/${game}/salons/${code}`);
+    const tx = await runTransaction(r, (cur) => (cur ? undefined : { host: acc.uid, name: acc.name, room: roomId, at: Date.now(), v: version }));
+    if (tx.committed) codeRef = r;
+  }
+  if (!codeRef) throw matchError('code-unavailable');
+  await onDisconnect(codeRef).remove();
+  const base = `salons/${game}/${roomId}`;
+  try {
+    await set(ref(database, `${base}/meta`), { host: acc.uid, name: acc.name, v: version, at: Date.now(), code });
+    await set(ref(database, `${base}/members/${acc.uid}`), memberValue(acc.name, avatar));
+    await onDisconnect(ref(database, base)).remove(); // l'hôte part avant le départ : le salon se ferme pour tous et ne laisse rien derrière lui
+  } catch (err) {
+    await remove(codeRef).catch(() => {});
+    throw err;
+  }
+  const room = new SalonRoom({ database, base, roomId, uid: acc.uid, name: acc.name, code, hostUid: acc.uid, version, codeRef });
+  await room.connectPresence();
+  return room;
+}
+
+/**
+ * INVITÉ : rejoint le salon d'un code. Échoue avec `code-not-found`, `own-code`, `version-mismatch` ou `salon-closed` (déjà lancé, ou fermé).
+ * @param {string} rawCode
+ * @param {{version: string, avatar?: string}} opts
+ * @returns {Promise<SalonRoom>}
+ */
+export async function joinSalon(rawCode, { version, avatar = '' }) {
+  const acc = await matchAccount();
+  if (!acc.ok) throw matchError(acc.reason);
+  const game = getGameId();
+  const database = db();
+  const code = String(rawCode ?? '').trim().toUpperCase();
+  if (!/^[A-Z2-9]{4}$/.test(code)) throw matchError('code-not-found');
+  const cur = (await get(ref(database, `mm/${game}/salons/${code}`))).val();
+  if (!cur) throw matchError('code-not-found');
+  if (cur.host === acc.uid) throw matchError('own-code');
+  if (cur.v !== version) throw matchError('version-mismatch');
+  const base = `salons/${game}/${cur.room}`;
+  try {
+    await set(ref(database, `${base}/members/${acc.uid}`), memberValue(acc.name, avatar));
+  } catch {
+    throw matchError('salon-closed'); // refusé par les règles : la partie est déjà lancée, ou le salon a disparu
+  }
+  let meta = null;
+  for (let i = 0; i < 40 && !meta; i++) {
+    meta = (await get(ref(database, `${base}/meta`)).catch(() => null))?.val() ?? null;
+    if (!meta) await new Promise((r) => setTimeout(r, META_RETRY_MS));
+  }
+  if (!meta) throw matchError('salon-closed');
+  const room = new SalonRoom({ database, base, roomId: cur.room, uid: acc.uid, name: acc.name, code, hostUid: meta.host, version });
+  await room.connectPresence();
+  return room;
+}
+
+/** Un salon (avant le départ) puis une salle de N places (pendant la partie). Le jeu y échange des chaînes ; le module ne les interprète pas. */
+export class SalonRoom {
+  #db;
+  #base;
+  #subs = [];
+  #left = false;
+  #codeRef;
+
+  constructor({ database, base, roomId, uid, name, code, hostUid, version, codeRef = null }) {
+    this.#db = database;
+    this.#base = base;
+    this.#codeRef = codeRef;
+    this.roomId = roomId;
+    /** Mon identifiant de compte, mon pseudo, le code du salon. */
+    this.uid = uid;
+    this.name = name;
+    this.code = code;
+    this.hostUid = hostUid;
+    this.isHost = uid === hostUid;
+    this.version = version;
+    /** Renseignés au DÉPART (`onStart`) : ma place (−1 = je n'en ai pas), les uid par place (null = IA), la graine, la composition. */
+    this.seat = null;
+    this.seats = null;
+    this.seed = null;
+    this.cfg = null;
+    this.started = false;
+  }
+
+  #ref(path) {
+    return ref(this.#db, `${this.#base}/${path}`);
+  }
+
+  /** Présence (par compte) : `true` tant que connecté, `false` posé par le SERVEUR à la déconnexion ; rétablie à chaque reconnexion. */
+  async connectPresence() {
+    const me = this.#ref(`presence/${this.uid}`);
+    await set(me, true);
+    await onDisconnect(me).set(false);
+    this.#subs.push(onValue(ref(this.#db, '.info/connected'), (snap) => {
+      if (snap.val() !== true || this.#left) return;
+      onDisconnect(me).set(false).then(() => set(me, true)).catch(() => {});
+    }));
+  }
+
+  // ------------------------------------------------------------------ LE SALON (avant le départ)
+
+  /** Membres du salon, l'hôte d'abord puis par ordre d'arrivée : `cb([{uid, name, avatar?}])` à chaque changement. */
+  onMembers(cb) {
+    this.#subs.push(onValue(this.#ref('members'), (snap) => {
+      const list = [];
+      snap.forEach((c) => {
+        list.push({ uid: c.key, ...c.val() });
+      });
+      list.sort((a, b) => (a.uid === this.hostUid ? -1 : b.uid === this.hostUid ? 1 : (a.at ?? 0) - (b.at ?? 0) || (a.uid < b.uid ? -1 : 1)));
+      cb(list);
+    }, quiet));
+  }
+
+  /** Composition publiée par l'hôte : `cb(chaîne | null)`. */
+  onLobby(cb) {
+    this.#subs.push(onValue(this.#ref('lobby'), (snap) => cb(snap.val()), quiet));
+  }
+
+  /** HÔTE : publie la composition (chaîne ≤ 3000 caractères). */
+  publishLobby(text) {
+    return set(this.#ref('lobby'), String(text));
+  }
+
+  /** Met à jour mon inscription (pseudo, avatar). */
+  setProfile({ name, avatar }) {
+    const patch = {};
+    if (typeof name === 'string' && name) patch.name = name.slice(0, 24);
+    if (typeof avatar === 'string' && avatar) patch.avatar = avatar.slice(0, 24);
+    return Object.keys(patch).length ? update(this.#ref(`members/${this.uid}`), patch) : Promise.resolve();
+  }
+
+  /** HÔTE : retire un membre du salon. */
+  kick(uid) {
+    return remove(this.#ref(`members/${uid}`));
+  }
+
+  /** Le salon n'existe plus (l'hôte l'a fermé ou s'est déconnecté) : `cb()` une fois, sauf si on est parti ou si la partie est lancée. */
+  onClosed(cb) {
+    // ⚠️ quand l'hôte supprime le salon, ses membres PERDENT le droit de lecture (règles) : Firebase annule alors l'écoute au lieu de livrer « vide » — l'annulation est l'événement
+    let fired = false;
+    const gone = () => {
+      if (fired || this.#left || this.started) return;
+      fired = true;
+      cb();
+    };
+    this.#subs.push(onValue(this.#ref('meta'), (snap) => {
+      if (!snap.exists()) gone();
+    }, gone));
+  }
+
+  /** Mon inscription a disparu (l'hôte m'a retiré) : `cb()` une fois. */
+  onKicked(cb) {
+    let fired = false;
+    const gone = () => { // retiré = plus de droit de lecture : l'écoute est annulée (cf. onClosed)
+      if (fired || this.#left || this.started) return;
+      fired = true;
+      cb();
+    };
+    this.#subs.push(onValue(this.#ref(`members/${this.uid}`), (snap) => {
+      if (!snap.exists()) gone();
+    }, gone));
+  }
+
+  /**
+   * HÔTE : lance la partie. `seats` = un uid par place (dans l'ordre des îles), `null` pour une place d'IA ; `cfg` = la composition (chaîne).
+   * Le code est retiré : plus personne ne peut rejoindre.
+   */
+  async start({ seed, seats, cfg }) {
+    if (!this.isHost) throw matchError('not-host');
+    const placed = {};
+    seats.forEach((u, i) => {
+      if (u) placed[`s${i}`] = u;
+    });
+    await set(this.#ref('start'), { seed, n: seats.length, at: Date.now(), cfg: String(cfg), seats: placed });
+    await onDisconnect(ref(this.#db, this.#base)).cancel(); // la salle survit à l'hôte : les autres joueurs continuent (ou terminent) sans lui
+    if (this.#codeRef) {
+      await onDisconnect(this.#codeRef).cancel();
+      await remove(this.#codeRef).catch(() => {});
+    }
+  }
+
+  /** Le départ a été donné : `cb({seed, n, seats, cfg, seat})` UNE fois (`seat` = −1 : pas de place pour moi). */
+  onStart(cb) {
+    this.#subs.push(onValue(this.#ref('start'), (snap) => {
+      const v = snap.val();
+      if (!v || this.started) return;
+      this.started = true;
+      this.n = v.n;
+      this.seats = Array.from({ length: v.n }, (_, i) => v.seats?.[`s${i}`] ?? null);
+      this.seat = this.seats.indexOf(this.uid);
+      this.seed = v.seed;
+      this.cfg = v.cfg;
+      cb({ seed: v.seed, n: v.n, seats: this.seats, cfg: v.cfg, seat: this.seat });
+    }, quiet));
+  }
+
+  // ------------------------------------------------------------------ LA PARTIE (après le départ)
+
+  #others() {
+    return this.seats.map((u, s) => (u && s !== this.seat ? s : -1)).filter((s) => s >= 0);
+  }
+
+  /** Les places HUMAINES (indices). */
+  get humanSeats() {
+    return this.seats.map((u, s) => (u ? s : -1)).filter((s) => s >= 0);
+  }
+
+  /** Je suis prêt (écran de jeu chargé). */
+  setReady() {
+    return set(this.#ref(`ready/${this.seat}`), true);
+  }
+
+  /** `cb()` une fois quand TOUTES les places humaines sont prêtes. */
+  onAllReady(cb) {
+    let fired = false;
+    this.#subs.push(onValue(this.#ref('ready'), (snap) => {
+      const v = snap.val() ?? {};
+      if (!fired && this.humanSeats.every((s) => v[s] === true)) {
+        fired = true;
+        cb();
+      }
+    }, quiet));
+  }
+
+  /** Mon message n° `index` (chaîne, jamais réécrite). */
+  sendTurn(index, payload) {
+    return set(this.#ref(`t/${this.seat}/${index}`), String(payload));
+  }
+
+  /** Les messages des AUTRES places humaines : `cb(place, index, chaîne)`. */
+  onTurn(cb) {
+    for (const s of this.#others()) this.#subs.push(onChildAdded(this.#ref(`t/${s}`), (snap) => cb(s, Number(snap.key), snap.val()), quiet));
+  }
+
+  /** Empreinte d'état (détection de désynchronisation). */
+  sendHash(index, hash) {
+    return set(this.#ref(`hash/${this.seat}/${index}`), String(hash));
+  }
+
+  /** Empreintes des autres places humaines : `cb(place, index, empreinte)`. */
+  onHash(cb) {
+    for (const s of this.#others()) this.#subs.push(onChildAdded(this.#ref(`hash/${s}`), (snap) => cb(s, Number(snap.key), snap.val()), quiet));
+  }
+
+  /** Présence des autres places humaines : `cb(place, enLigne)` à chaque changement. */
+  onPeerPresence(cb) {
+    for (const s of this.#others()) this.#subs.push(onValue(this.#ref(`presence/${this.seats[s]}`), (snap) => cb(s, snap.val() === true), quiet));
+  }
+
+  /** HÔTE : « la place `seat` n'est plus attendue à partir du tour `turn` » (écrit une seule fois par place). */
+  announceDrop(seat, turn) {
+    return set(this.#ref(`drops/${seat}`), turn);
+  }
+
+  /** Les décisions de l'hôte sur les places qui ont quitté : `cb(place, tour)`. */
+  onDrop(cb) {
+    this.#subs.push(onChildAdded(this.#ref('drops'), (snap) => cb(Number(snap.key), snap.val()), quiet));
+  }
+
+  /**
+   * Quitte. Avant le départ : un invité s'efface du salon, l'hôte le ferme. Pendant la partie : se déclare absent ; le dernier sorti supprime la salle.
+   */
+  async leave() {
+    if (this.#left) return;
+    this.#left = true;
+    this.#subs.forEach((off) => off());
+    this.#subs = [];
+    try {
+      const me = this.#ref(`presence/${this.uid}`);
+      await onDisconnect(me).cancel().catch(quiet);
+      if (!this.started) {
+        if (this.isHost) {
+          await onDisconnect(ref(this.#db, this.#base)).cancel();
+          if (this.#codeRef) {
+            await onDisconnect(this.#codeRef).cancel();
+            await remove(this.#codeRef).catch(() => {});
+          }
+          await remove(ref(this.#db, this.#base));
+        } else { // un invité que l'hôte a déjà retiré (ou dont le salon est fermé) n'a plus rien à effacer : refus sans importance
+          await remove(this.#ref(`members/${this.uid}`)).catch(quiet);
+          await set(me, false).catch(quiet);
+        }
+        return;
+      }
+      await set(me, false);
+      const all = (await get(this.#ref('presence'))).val() ?? {};
+      if (!Object.values(all).some((v) => v === true)) await remove(ref(this.#db, this.#base)); // le dernier sorti fait le ménage
+    } catch (err) {
+      console.warn('[kump] sortie de salon incomplète', err);
+    }
+  }
+}

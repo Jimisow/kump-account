@@ -33,6 +33,19 @@
             "room": { ".validate": "newData.isString() && newData.val().length <= 40" },
             "$other": { ".validate": false }
           }
+        },
+        "salons": {
+          "$code": {
+            ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'",
+            ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && $code.matches(/^[A-Z2-9]{4}$/) && ((!data.exists() && newData.child('host').val() === auth.uid) || (data.exists() && data.child('host').val() === auth.uid))",
+            ".validate": "!newData.exists() || newData.hasChildren(['host', 'name', 'room', 'at', 'v'])",
+            "host": { ".validate": "newData.isString()" },
+            "name": { ".validate": "newData.isString() && newData.val().length <= 24" },
+            "room": { ".validate": "newData.isString() && newData.val().length <= 40" },
+            "at": { ".validate": "newData.isNumber()" },
+            "v": { ".validate": "newData.isString() && newData.val().length <= 32" },
+            "$other": { ".validate": false }
+          }
         }
       }
     },
@@ -198,6 +211,91 @@
             "$seat": {
               ".write": "auth != null && root.child('rooms/' + $game + '/' + $room + '/meta/p' + $seat).val() === auth.uid",
               ".validate": "newData.isBoolean()"
+            }
+          },
+          "$other": { ".validate": false }
+        }
+      }
+    },
+
+    "salons": {
+      "$game": {
+        "$room": {
+          ".read": "auth != null && (data.child('members/' + auth.uid).exists() || data.child('meta/host').val() === auth.uid)",
+          ".write": "auth != null && !newData.exists() && (data.child('meta/host').val() === auth.uid || data.child('members/' + auth.uid).exists())",
+
+          "meta": {
+            ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && !data.exists() && newData.child('host').val() === auth.uid && newData.child('code').isString() && root.child('mm/' + $game + '/salons/' + newData.child('code').val() + '/room').val() === $room && root.child('mm/' + $game + '/salons/' + newData.child('code').val() + '/host').val() === auth.uid",
+            ".validate": "newData.hasChildren(['host', 'name', 'v', 'at', 'code'])",
+            "host": { ".validate": "newData.isString()" },
+            "name": { ".validate": "newData.isString() && newData.val().length <= 24" },
+            "v": { ".validate": "newData.isString() && newData.val().length <= 32" },
+            "at": { ".validate": "newData.isNumber()" },
+            "code": { ".validate": "newData.isString() && newData.val().matches(/^[A-Z2-9]{4}$/)" },
+            "$other": { ".validate": false }
+          },
+
+          "members": {
+            "$uid": {
+              ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && ((auth.uid === $uid && (data.exists() || root.child('salons/' + $game + '/' + $room + '/meta/host').val() === auth.uid || (!root.child('salons/' + $game + '/' + $room + '/start').exists() && root.child('salons/' + $game + '/' + $room + '/meta/code').isString() && root.child('mm/' + $game + '/salons/' + root.child('salons/' + $game + '/' + $room + '/meta/code').val() + '/room').val() === $room))) || (!newData.exists() && root.child('salons/' + $game + '/' + $room + '/meta/host').val() === auth.uid))",
+              ".validate": "!newData.exists() || newData.hasChildren(['name', 'at'])",
+              "name": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 24" },
+              "avatar": { ".validate": "newData.isString() && newData.val().length <= 24" },
+              "at": { ".validate": "newData.isNumber()" },
+              "$other": { ".validate": false }
+            }
+          },
+
+          "lobby": {
+            ".write": "auth != null && root.child('salons/' + $game + '/' + $room + '/meta/host').val() === auth.uid",
+            ".validate": "newData.isString() && newData.val().length <= 3000"
+          },
+
+          "start": {
+            ".write": "auth != null && !data.exists() && root.child('salons/' + $game + '/' + $room + '/meta/host').val() === auth.uid",
+            ".validate": "newData.hasChildren(['seed', 'n', 'at', 'cfg', 'seats'])",
+            "seed": { ".validate": "newData.isNumber()" },
+            "n": { ".validate": "newData.isNumber() && newData.val() >= 3 && newData.val() <= 5" },
+            "at": { ".validate": "newData.isNumber()" },
+            "cfg": { ".validate": "newData.isString() && newData.val().length <= 3000" },
+            "seats": {
+              "$s": { ".validate": "$s.matches(/^s[0-4]$/) && newData.isString() && newData.val().length <= 40" }
+            },
+            "$other": { ".validate": false }
+          },
+
+          "t": {
+            "$seat": {
+              "$i": {
+                ".write": "auth != null && !data.exists() && $seat.matches(/^[0-4]$/) && root.child('salons/' + $game + '/' + $room + '/start/seats/s' + $seat + '').val() === auth.uid",
+                ".validate": "newData.isString() && newData.val().length <= 4000 && $i.matches(/^[0-9]{1,6}$/)"
+              }
+            }
+          },
+          "hash": {
+            "$seat": {
+              "$i": {
+                ".write": "auth != null && $seat.matches(/^[0-4]$/) && root.child('salons/' + $game + '/' + $room + '/start/seats/s' + $seat + '').val() === auth.uid",
+                ".validate": "newData.isString() && newData.val().length <= 64 && $i.matches(/^[0-9]{1,6}$/)"
+              }
+            }
+          },
+          "ready": {
+            "$seat": {
+              ".write": "auth != null && $seat.matches(/^[0-4]$/) && root.child('salons/' + $game + '/' + $room + '/start/seats/s' + $seat + '').val() === auth.uid",
+              ".validate": "newData.isBoolean()"
+            }
+          },
+          "presence": {
+            "$uid": {
+              ".write": "auth != null && auth.uid === $uid",
+              ".validate": "newData.isBoolean()"
+            }
+          },
+          "drops": {
+            "$seat": {
+              ".write": "auth != null && !data.exists() && $seat.matches(/^[0-4]$/) && root.child('salons/' + $game + '/' + $room + '/meta/host').val() === auth.uid",
+              ".validate": "newData.isNumber()"
             }
           },
           "$other": { ".validate": false }
