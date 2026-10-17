@@ -60,6 +60,7 @@ export const SOCIAL_MEMBER_KEY = 'kump.socialMember';
  * ⚠️ Ajouter un nouveau jeu = l'ajouter ICI et dans database.rules.json (`social/invites/.../url`), puis déployer les règles.
  */
 export const INVITE_HOSTS = Object.freeze([
+  'ltw.kump.fr', // Line Tower War, domaine officiel depuis le 2026-10-17
   'linetower.vercel.app',
   'androgame.vercel.app',
   'assassins.kump.fr',

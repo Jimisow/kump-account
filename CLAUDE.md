@@ -89,6 +89,10 @@ d'`onDisconnect` (exécuté par le serveur), chat et invitations d'écoutes en d
   jeux / refusée / acceptée → partie en ligne, avatar de l'adversaire).
 - Ajouter un jeu aux invitations = son domaine dans `INVITE_HOSTS` (api.js) ET dans la regex `social/invites/.../url` des règles, puis
   redéployer les règles. Afficher ses avatars ailleurs = `registerAvatarSet()` (ou une entrée par défaut dans `AVATAR_SETS`, ui.js).
+  ⚠️ `INVITE_HOSTS` est vérifié chez le DESTINATAIRE, avec SA copie du module : un domaine ajouté n'est accepté par un jeu qu'après
+  réinstallation de kump-account dans ce jeu (et son déploiement). Ne faire envoyer des invitations vers le nouveau domaine qu'ensuite.
+  0.7.1 (2026-10-17) : `ltw.kump.fr` (domaine officiel de Line Tower War, `linetower.vercel.app` gardé) — règles testées sur
+  l'émulateur (`Tower/tools/test-social-rules.mjs`, 68 vérifications).
 
 ## L'objectif : installer, et n'avoir plus qu'à habiller
 

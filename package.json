@@ -1,6 +1,6 @@
 {
   "name": "kump-account",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "Compte joueur KUMP partagé entre tous les jeux et applications KUMP (identité, progression par jeu, trophées, temps de jeu, classements).",
   "type": "module",
   "main": "src/index.js",

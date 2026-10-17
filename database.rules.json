@@ -120,7 +120,7 @@
             "name": { ".validate": "newData.isString() && newData.val().length <= 24" },
             "game": { ".validate": "newData.isString() && newData.val().matches(/^[a-z0-9-]{1,40}$/)" },
             "gameName": { ".validate": "newData.isString() && newData.val().length <= 40" },
-            "url": { ".validate": "newData.isString() && newData.val().length <= 300 && (newData.val().matches(/^https:\\/\\/(linetower\\.vercel\\.app|androgame\\.vercel\\.app|assassins\\.kump\\.fr|dtrack\\.kump\\.fr|www\\.kump\\.fr)(\\/.*)?$/) || newData.val().matches(/^http:\\/\\/(localhost|127\\.0\\.0\\.1)(:[0-9]+)?(\\/.*)?$/))" },
+            "url": { ".validate": "newData.isString() && newData.val().length <= 300 && (newData.val().matches(/^https:\\/\\/(ltw\\.kump\\.fr|linetower\\.vercel\\.app|androgame\\.vercel\\.app|assassins\\.kump\\.fr|dtrack\\.kump\\.fr|www\\.kump\\.fr)(\\/.*)?$/) || newData.val().matches(/^http:\\/\\/(localhost|127\\.0\\.0\\.1)(:[0-9]+)?(\\/.*)?$/))" },
             "code": { ".validate": "newData.isString() && newData.val().matches(/^[A-Z2-9]{4}$/)" },
             "at": { ".validate": "newData.isNumber() && newData.val() <= now" },
             "$other": { ".validate": false }
