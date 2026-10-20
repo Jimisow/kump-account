@@ -95,6 +95,8 @@ d'`onDisconnect` (exécuté par le serveur), chat et invitations d'écoutes en d
   l'émulateur (`Tower/tools/test-social-rules.mjs`, 68 vérifications).
   0.8.0 (2026-10-20, POUSSÉ `0d90818`, utilisé par Tower) : `match` — `resumeMatch({ roomId, seat })`, `MatchRoom.readTurns()`, `MatchRoom.onConnected(cb)` (reprise d'une partie 1 contre 1
   interrompue ; **aucune règle RTDB modifiée**, rien à déployer côté base). Consommateur : Tower (README > « Reprise d'une partie interrompue »).
+  0.9.0 (2026-10-20) : `match` — `resumeSalon({ roomId })`, `SalonRoom.readTurns()` (toutes les places), `SalonRoom.onConnected(cb)`, `restoreStart` : reprise d'une partie de SALON
+  interrompue (le joueur reste membre, sa place lui laisse écrire ses messages : **aucune règle RTDB modifiée**). Consommateur : Tower (un absent est joué par l'IA de l'hôte, puis revient).
 
 ## L'objectif : installer, et n'avoir plus qu'à habiller
 

@@ -533,6 +533,36 @@ export async function joinSalon(rawCode, { version, avatar = '' }) {
   return room;
 }
 
+/**
+ * REPRISE d'une partie de SALON interrompue (0.9.0, 2026-10-20) : un joueur déconnecté (batterie, réseau, application fermée) revient dans la salle où il a une PLACE.
+ * Aucune règle nouvelle : il est toujours membre (les règles lui laissent la lecture) et sa place lui laisse écrire SES messages (`t/{place}/{i}`, jamais réécrits).
+ * Renvoie une salle déjà « partie » (`started`, `seat`, `seats`, `seed`, `cfg` renseignés) ; le jeu relit l'historique (`readTurns`) et rejoue la partie.
+ * `room-unavailable` : la salle n'existe plus (partie terminée) ou je n'y ai pas de place.
+ * @param {{roomId: string}} opts
+ * @returns {Promise<SalonRoom>}
+ */
+export async function resumeSalon({ roomId }) {
+  const acc = await matchAccount();
+  if (!acc.ok) throw matchError(acc.reason);
+  if (typeof roomId !== 'string' || !/^[-\w]{6,40}$/.test(roomId)) throw matchError('room-unavailable');
+  const game = getGameId();
+  const database = db();
+  const base = `salons/${game}/${roomId}`;
+  let meta = null;
+  let start = null;
+  try {
+    [meta, start] = await Promise.all([get(ref(database, `${base}/meta`)), get(ref(database, `${base}/start`))]).then(([m, s]) => [m.val(), s.val()]);
+  } catch {
+    meta = null; // salle supprimée (ou plus membre) : les règles refusent la lecture
+  }
+  if (!meta || !start) throw matchError('room-unavailable');
+  const room = new SalonRoom({ database, base, roomId, uid: acc.uid, name: acc.name, code: meta.code, hostUid: meta.host, version: meta.v });
+  room.restoreStart(start);
+  if (room.seat < 0) throw matchError('room-unavailable');
+  await room.connectPresence();
+  return room;
+}
+
 /** Un salon (avant le départ) puis une salle de N places (pendant la partie). Le jeu y échange des chaînes ; le module ne les interprète pas. */
 export class SalonRoom {
   #db;
@@ -663,14 +693,19 @@ export class SalonRoom {
     this.#subs.push(onValue(this.#ref('start'), (snap) => {
       const v = snap.val();
       if (!v || this.started) return;
-      this.started = true;
-      this.n = v.n;
-      this.seats = Array.from({ length: v.n }, (_, i) => v.seats?.[`s${i}`] ?? null);
-      this.seat = this.seats.indexOf(this.uid);
-      this.seed = v.seed;
-      this.cfg = v.cfg;
+      this.restoreStart(v);
       cb({ seed: v.seed, n: v.n, seats: this.seats, cfg: v.cfg, seat: this.seat });
     }, quiet));
+  }
+
+  /** (interne, et reprise) Renseigne la salle à partir du départ `start` écrit par l'hôte. */
+  restoreStart(v) {
+    this.started = true;
+    this.n = v.n;
+    this.seats = Array.from({ length: v.n }, (_, i) => v.seats?.[`s${i}`] ?? null);
+    this.seat = this.seats.indexOf(this.uid);
+    this.seed = v.seed;
+    this.cfg = v.cfg;
   }
 
   // ------------------------------------------------------------------ LA PARTIE (après le départ)
@@ -709,6 +744,28 @@ export class SalonRoom {
   /** Les messages des AUTRES places humaines : `cb(place, index, chaîne)`. */
   onTurn(cb) {
     for (const s of this.#others()) this.#subs.push(onChildAdded(this.#ref(`t/${s}`), (snap) => cb(s, Number(snap.key), snap.val()), quiet));
+  }
+
+  /**
+   * TOUS les messages déjà écrits, de TOUTES les places humaines (moi compris) : `Map(place → Map(n° → chaîne))`. Sert à la REPRISE (le jeu rejoue la partie depuis le
+   * début). Les messages des autres arrivent aussi par `onTurn` (qui livre l'existant) : le jeu doit ignorer les doublons.
+   */
+  async readTurns() {
+    const out = new Map();
+    const val = (await get(this.#ref('t'))).val() ?? {};
+    for (const [seat, msgs] of Object.entries(val)) {
+      if (!/^[0-4]$/.test(seat) || !msgs) continue;
+      const m = new Map();
+      // Realtime Database rend un tableau si les clés sont des entiers contigus depuis 0
+      for (const [k, v] of Object.entries(msgs)) if (typeof v === 'string' && /^[0-9]+$/.test(k)) m.set(Number(k), v);
+      out.set(Number(seat), m);
+    }
+    return out;
+  }
+
+  /** Ma propre connexion au serveur : `cb(true|false)` à chaque changement (pour ne pas accuser les autres d'une coupure qui est la mienne). */
+  onConnected(cb) {
+    this.#subs.push(onValue(ref(this.#db, '.info/connected'), (snap) => cb(snap.val() === true)));
   }
 
   /** Empreinte d'état (détection de désynchronisation). */

@@ -70,6 +70,8 @@ export interface SalonStart {
 }
 
 export function hostSalon(opts: { version: string; avatar?: string }): Promise<SalonRoom>;
+/** Reprise d'une partie de salon interrompue (0.9.0) : la salle où j'ai une place, déjà « partie ». */
+export function resumeSalon(opts: { roomId: string }): Promise<SalonRoom>;
 export function joinSalon(code: string, opts: { version: string; avatar?: string }): Promise<SalonRoom>;
 
 export class SalonRoom {
@@ -106,6 +108,10 @@ export class SalonRoom {
   sendHash(index: number, hash: string): Promise<void>;
   onHash(cb: (seat: number, index: number, hash: string) => void): void;
   onPeerPresence(cb: (seat: number, online: boolean) => void): void;
+  /** Tous les messages déjà écrits (reprise) : place → (n° → chaîne). */
+  readTurns(): Promise<Map<number, Map<number, string>>>;
+  onConnected(cb: (online: boolean) => void): void;
+  restoreStart(start: { seed: number; n: number; cfg: string; seats: Record<string, string> }): void;
   announceDrop(seat: number, turn: number): Promise<void>;
   onDrop(cb: (seat: number, turn: number) => void): void;
   leave(): Promise<void>;

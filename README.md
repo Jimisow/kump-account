@@ -408,6 +408,9 @@ ajouter son propre couple d'index.
 
 ## Salons en ligne (0.7.0) — `kump-account/match`
 
+**Reprise d'un salon interrompu (0.9.0)** : `const room = await resumeSalon({ roomId })` rouvre la salle où j'ai une place (déjà « partie » : `seat`, `seats`, `seed`, `cfg` renseignés) ;
+`await room.readTurns()` rend tous les messages (`Map(place → Map(n° → chaîne))`) pour rejouer la partie ; `room.onConnected(cb)` suit ma propre connexion. `room-unavailable` : partie terminée.
+
 Parties à **3-5 places** (humains + IA du jeu), dans le même point d'entrée que le 1 contre 1 (`hostSalon`, `joinSalon`, `SalonRoom`). Le module ne connaît rien des règles du jeu : il met des joueurs dans une
 salle, leur fait partager une **composition** (une chaîne que le jeu remplit) et relaie des messages numérotés ; le jeu y branche son lockstep.
 
