@@ -249,6 +249,32 @@ export async function joinFriendMatch(rawCode, { version }) {
   return openRoom(game, roomId, 1, acc.uid);
 }
 
+/**
+ * REPRISE d'une partie en cours (0.8.0) : rouvre la salle `roomId` où le joueur a été déconnecté (batterie, réseau, application fermée).
+ * Le jeu garde `roomId` et `seat` lui-même (stockage local) ; ici on vérifie seulement que la salle existe encore ET que ce compte y occupe
+ * bien ce siège (les règles le garantissent déjà : lecture réservée aux deux joueurs). La salle disparaît dès que les deux joueurs l'ont
+ * quittée ou à la fin de la partie : `room-unavailable` = la partie est terminée, le jeu demande alors le résultat au serveur.
+ * @param {{roomId: string, seat: 0|1}} opts
+ * @returns {Promise<MatchRoom>}
+ */
+export async function resumeMatch({ roomId, seat }) {
+  const acc = await matchAccount();
+  if (!acc.ok) throw matchError(acc.reason);
+  if (typeof roomId !== 'string' || !/^[-\w]{6,40}$/.test(roomId) || (seat !== 0 && seat !== 1)) throw matchError('room-unavailable');
+  const game = getGameId();
+  const base = `rooms/${game}/${roomId}`;
+  let meta = null;
+  try {
+    meta = (await get(ref(db(), `${base}/meta`))).val();
+  } catch {
+    meta = null; // salle supprimée : les règles refusent la lecture
+  }
+  if (!meta || meta[`p${seat}`] !== acc.uid) throw matchError('room-unavailable');
+  const room = new MatchRoom(base, roomId, seat, meta);
+  await room.connectPresence();
+  return room;
+}
+
 /** Ouvre la salle : relit `meta` (écrite par l'autre joueur juste avant) et branche la présence. */
 async function openRoom(game, roomId, seat, uid) {
   const base = `rooms/${game}/${roomId}`;
@@ -337,6 +363,22 @@ export class MatchRoom {
     this.#subs.push(onChildAdded(this.#ref(`t/${this.opponentSeat}`), (snap) => cb(Number(snap.key), snap.val())));
   }
 
+  /**
+   * TOUS les messages déjà écrits, des deux sièges (reprise d'une partie : le jeu rejoue la partie depuis le début). `{ own, opp }` = Map(n° → chaîne).
+   * Les messages qui arriveront ensuite viennent par `onTurn` comme d'habitude (à brancher AVANT, pour ne rien perdre entre les deux).
+   */
+  async readTurns() {
+    const read = async (seat) => {
+      const out = new Map();
+      const val = (await get(this.#ref(`t/${seat}`))).val() ?? {};
+      // Realtime Database rend un tableau si les clés sont des entiers contigus depuis 0
+      for (const [k, v] of Object.entries(val)) if (typeof v === 'string' && /^[0-9]+$/.test(k)) out.set(Number(k), v);
+      return out;
+    };
+    const [own, opp] = await Promise.all([read(this.seat), read(this.opponentSeat)]);
+    return { own, opp };
+  }
+
   /** Empreinte d'état à un instant donné (détection de désynchronisation). */
   sendHash(index, hash) {
     return set(this.#ref(`hash/${this.seat}/${index}`), String(hash));
@@ -345,6 +387,11 @@ export class MatchRoom {
   /** Empreintes de l'adversaire : `cb(index, hash)`. */
   onHash(cb) {
     this.#subs.push(onChildAdded(this.#ref(`hash/${this.opponentSeat}`), (snap) => cb(Number(snap.key), snap.val())));
+  }
+
+  /** Ma propre connexion au serveur : `cb(true|false)` à chaque changement (le jeu s'en sert pour ne pas accuser l'adversaire d'une coupure qui est la sienne). */
+  onConnected(cb) {
+    this.#subs.push(onValue(ref(db(), '.info/connected'), (snap) => cb(snap.val() === true)));
   }
 
   /** Présence de l'adversaire : `cb(true|false)` à chaque changement. */

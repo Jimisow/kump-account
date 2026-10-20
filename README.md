@@ -280,6 +280,21 @@ room.onOpponentPresence((enLigne) => …);                   // déconnexion de 
 await room.leave();                                        // le dernier sorti supprime la salle
 ```
 
+**Reprise d'une partie interrompue (0.8.0)** — un joueur déconnecté (batterie, réseau, application fermée) peut REVENIR dans sa partie : les messages
+restent dans la salle tant qu'elle existe, il suffit de les relire et de rejouer.
+
+```js
+import { resumeMatch } from 'kump-account/match';
+
+const room = await resumeMatch({ roomId, seat });   // le jeu a gardé roomId et seat ; lève 'room-unavailable' si la salle n'existe plus (partie terminée)
+room.onTurn((i, texte) => …);                        // brancher AVANT la lecture : l'adversaire continue d'écrire pendant qu'on rejoue
+const { own, opp } = await room.readTurns();         // Map(n° → chaîne) de TOUS les messages déjà écrits, les miens et ceux de l'adversaire
+room.onConnected((ok) => …);                         // MA propre connexion au serveur (pour ne pas accuser l'autre d'une coupure qui est la mienne)
+```
+
+Aucune règle de la base n'a changé : lecture d'une salle déjà réservée à ses deux joueurs, présence déjà modifiable par son siège. Ce que le jeu en fait
+(IA de remplacement, jeton de reprise) est son affaire — Tower : `data/adapters/OnlineAdapter.js`.
+
 - **Compte RÉEL obligatoire** (email ou Google) : un compte anonyme est refusé par les règles (`sign_in_provider`), et
   `matchAccount()` le dit au jeu avant toute tentative pour qu'il propose l'écran de compte.
 - **`version`** : seuls deux clients de même version se rencontrent (file et code). Un jeu en lockstep doit la changer à chaque

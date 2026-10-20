@@ -38,8 +38,15 @@ export class MatchRoom {
   sendHash(index: number, hash: string): Promise<void>;
   onHash(cb: (index: number, hash: string) => void): void;
   onOpponentPresence(cb: (online: boolean) => void): void;
+  /** 0.8.0 — ma propre connexion au serveur. */
+  onConnected(cb: (connected: boolean) => void): void;
+  /** 0.8.0 — tous les messages déjà écrits (les miens et ceux de l'adversaire), pour rejouer une partie reprise. */
+  readTurns(): Promise<{ own: Map<number, string>; opp: Map<number, string> }>;
   leave(): Promise<void>;
 }
+
+/** 0.8.0 — rouvre la salle d'une partie en cours où l'on a été déconnecté. `room-unavailable` : la salle n'existe plus (partie terminée). */
+export function resumeMatch(opts: { roomId: string; seat: 0 | 1 }): Promise<MatchRoom>;
 
 // ---------------------------------------------------------------- SALONS (3-5 places, 0.7.0) — voir README > Salons en ligne
 

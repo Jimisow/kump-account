@@ -93,6 +93,8 @@ d'`onDisconnect` (exécuté par le serveur), chat et invitations d'écoutes en d
   réinstallation de kump-account dans ce jeu (et son déploiement). Ne faire envoyer des invitations vers le nouveau domaine qu'ensuite.
   0.7.1 (2026-10-17) : `ltw.kump.fr` (domaine officiel de Line Tower War, `linetower.vercel.app` gardé) — règles testées sur
   l'émulateur (`Tower/tools/test-social-rules.mjs`, 68 vérifications).
+  0.8.0 (2026-10-20, LOCAL, NON POUSSÉ) : `match` — `resumeMatch({ roomId, seat })`, `MatchRoom.readTurns()`, `MatchRoom.onConnected(cb)` (reprise d'une partie 1 contre 1
+  interrompue ; **aucune règle RTDB modifiée**, rien à déployer côté base). Consommateur : Tower (README > « Reprise d'une partie interrompue »).
 
 ## L'objectif : installer, et n'avoir plus qu'à habiller
 
