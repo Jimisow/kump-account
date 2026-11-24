@@ -323,6 +323,13 @@ par l'API, l'ajouter **ici** plutôt que de contourner le module côté projet.
 
 ## Les pièges déjà rencontrés (ne pas les défaire)
 
+- **Un profil peut manquer, et il se RÉPARE (0.10.1, 2026-11-26).** `ensureProfile` n'est appelée qu'à la
+  connexion ; si cette première écriture échoue (réseau lent : « client is offline » au bout de 10 s), le compte
+  restait SANS `users/{uid}` pour toujours — `setDisplayName` refusé (PERMISSION_DENIED : la règle `update` lit un
+  document absent), pseudo « JoueurXXXX » à vie, temps de jeu jamais crédité (`update()` côté serveur). Trouvé en
+  branchant Astria. Désormais `ensureProfile` rend vrai / faux, `getProfile` recrée un profil absent puis relit, et
+  `setDisplayName` le recrée puis réessaie une fois. Vérifié sur les émulateurs (profil effacé → réparé par chacune).
+  Ne pas retirer ces réparations en les prenant pour du code mort : le cas ne se voit qu'avec un réseau lent.
 - **`ensureSignedIn()` attend la restauration de session avant de créer un
   compte anonyme.** Firebase relit l'utilisateur déjà connecté de façon
   ASYNCHRONE : un `signInAnonymously()` lancé trop tôt créerait un NOUVEAU

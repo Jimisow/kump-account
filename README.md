@@ -79,7 +79,7 @@ ce serait perdre la progression de tous les joueurs de ce jeu.
 | `linkWithGoogle()` / `linkWithApple()` | Rattache le compte anonyme à Google/Apple — la progression est conservée. **À utiliser dans un JEU.** |
 | `signInWithGoogle()` / `signInWithApple()` | Bascule vers le compte Google/Apple. **À utiliser sur un SITE**, où il n'y a pas de progression anonyme à préserver. |
 | `sendPasswordReset(email)` | Email de réinitialisation. |
-| `getProfile()` | Pseudo, email, temps de jeu total, date d'inscription, `isAdmin`. |
+| `getProfile()` | Pseudo, email, temps de jeu total, date d'inscription, `isAdmin`. Recrée un profil absent (0.10.1). |
 | `setDisplayName(nom)` | Change le pseudo (3 à 16 caractères). |
 | `addPlaytime(ms)` | ⚠️ **Ne fonctionne plus depuis la phase 3** : les règles refusent au client d'écrire `totalPlaytimeMs` et `playtimeMs`. Le temps de jeu est désormais crédité par le serveur, à partir de la durée d'un `submitRun()` ou d'un `submitSession()` qu'il a jugée plausible. Conservée pour un futur jeu sans serveur de validation. |
 | `loadGameData()` / `saveGameData(obj)` | Progression du joueur pour CE jeu, forme libre. |

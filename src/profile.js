@@ -18,10 +18,20 @@ function defaultDisplayName(uid) {
 /**
  * Crée le document de profil s'il n'existe pas encore, et rafraîchit la date
  * de dernière visite. Appelée automatiquement à chaque connexion.
+ *
+ * 0.10.1 : rend `true` si le profil existe (ou vient d'être créé), `false` si
+ * l'opération a échoué (réseau). Avant, l'échec était seulement journalisé — et
+ * comme cette fonction n'est appelée qu'à la connexion, un compte créé sur un
+ * réseau lent (« client is offline » au bout de 10 s) restait SANS profil pour
+ * toujours : `setDisplayName` était alors refusé (PERMISSION_DENIED : la règle
+ * `update` lit un document absent) et le joueur gardait « JoueurXXXX ». Trouvé
+ * le 2026-11-26 en branchant Les Éclats d'Astria. D'où la RÉPARATION dans
+ * `getProfile` et `setDisplayName` ci-dessous.
  * @param {import('firebase/auth').User} user
+ * @returns {Promise<boolean>}
  */
 export async function ensureProfile(user) {
-  if (!requireReady('ensureProfile') || !user) return;
+  if (!requireReady('ensureProfile') || !user) return false;
   const { db } = getKumpContext();
   const ref = doc(db, 'users', user.uid);
 
@@ -34,11 +44,13 @@ export async function ensureProfile(user) {
         lastSeenAt: serverTimestamp(),
         totalPlaytimeMs: 0,
       });
-      return;
+      return true;
     }
     await updateDoc(ref, { lastSeenAt: serverTimestamp() });
+    return true;
   } catch (error) {
     console.error('[kump] ensureProfile a échoué', error);
+    return false;
   }
 }
 
@@ -54,7 +66,10 @@ export async function getProfile() {
 
   const { db } = getKumpContext();
   try {
-    const snapshot = await getDoc(doc(db, 'users', user.uid));
+    let snapshot = await getDoc(doc(db, 'users', user.uid));
+    // Profil ABSENT (création interrompue, réseau lent : voir ensureProfile) : on le répare ici, au premier
+    // affichage, plutôt que de montrer un pseudo par défaut qu'aucun changement de pseudo ne pourra corriger.
+    if (!snapshot.exists() && (await ensureProfile(user))) snapshot = await getDoc(doc(db, 'users', user.uid));
     const data = snapshot.exists() ? snapshot.data() : {};
     return {
       uid: user.uid,
@@ -93,10 +108,21 @@ export async function setDisplayName(displayName) {
   if (!user) return { success: false, error: 'not-signed-in' };
 
   const { db } = getKumpContext();
+  const ref = doc(db, 'users', user.uid);
   try {
-    await updateDoc(doc(db, 'users', user.uid), { displayName: name });
+    await updateDoc(ref, { displayName: name });
     return { success: true };
   } catch (error) {
+    // Profil absent (voir ensureProfile) : on le crée, puis on réessaie UNE fois.
+    try {
+      if (!(await getDoc(ref)).exists() && (await ensureProfile(user))) {
+        await updateDoc(ref, { displayName: name });
+        return { success: true };
+      }
+    } catch (retry) {
+      console.error('[kump] setDisplayName a échoué (après réparation du profil)', retry);
+      return { success: false, error: 'unknown' };
+    }
     console.error('[kump] setDisplayName a échoué', error);
     return { success: false, error: 'unknown' };
   }
