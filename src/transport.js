@@ -61,7 +61,7 @@ export function makeQueue(storageKey) {
  *   pas d'`apiBaseUrl`, pas de session, pas de jeton, réseau absent. L'appelant
  *   doit alors mettre en file — jamais abandonner.
  */
-export async function post(path, body) {
+export async function post(path, body, { keepalive = false } = {}) {
   const { apiBaseUrl } = getKumpContext();
   if (!apiBaseUrl) {
     console.warn('[kump] initKump: `apiBaseUrl` absente — impossible de valider les parties.');
@@ -78,6 +78,9 @@ export async function post(path, body) {
       method: 'POST',
       headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
       body: JSON.stringify(body),
+      // 0.10.2 : `keepalive` (facultatif) — l'envoi survit à la fermeture de la page (sauvegarde en quittant) ;
+      // le navigateur le limite à 64 Ko en vol, d'où une option et non le défaut (les parties restent comme avant).
+      keepalive,
     });
     const data = await response.json().catch(() => ({}));
     // On distingue soigneusement DEUX échecs très différents : le serveur a

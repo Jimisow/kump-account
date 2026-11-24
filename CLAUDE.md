@@ -113,6 +113,9 @@ d'`onDisconnect` (exécuté par le serveur), chat et invitations d'écoutes en d
 - **Pas de file d'attente** (contrairement aux sessions) : créer un héros hors ligne ne peut pas être « validé plus
   tard » sans mentir au joueur sur sa liste. `offline` est rendu, le jeu garde sa copie locale.
 - Messages ajoutés (`messages.js`) : `name-taken`, `too-many`, `too-big`, `unknown-character`, `invalid`, `login`.
+- **0.10.2** : `saveCharacter(c, { keepalive: true })` — `post()` de transport.js accepte `{ keepalive }` (OPTION, pas le
+  défaut : le navigateur limite les envois keepalive à 64 Ko en vol ; runs et sessions ne changent pas). Pour qu'une
+  sauvegarde faite en quittant la page (Astria : `pagehide`, onglet masqué) ne soit pas coupée.
 
 ## L'objectif : installer, et n'avoir plus qu'à habiller
 

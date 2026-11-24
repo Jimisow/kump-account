@@ -97,7 +97,7 @@ ce serait perdre la progression de tous les joueurs de ce jeu.
 | `fetchLeaderboard({ sortBy, thenBy, max })` | Top N. |
 | `fetchRank({ sortBy, value, ... })` | Rang exact du joueur, par comptage serveur. |
 | `getCharacters()` | Personnages du joueur pour CE jeu (0.10.0). Lecture directe. Voir « Personnages d'un compte ». |
-| `saveCharacter(c)` / `deleteCharacter(id)` | Crée / met à jour / supprime un personnage, validé par le serveur (0.10.0). |
+| `saveCharacter(c, { keepalive })` / `deleteCharacter(id)` | Crée / met à jour / supprime un personnage, validé par le serveur (0.10.0). `keepalive` (0.10.2) : pour sauver en quittant la page. |
 
 ## Validation serveur des parties
 

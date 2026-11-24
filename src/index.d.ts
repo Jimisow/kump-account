@@ -197,7 +197,8 @@ export type KumpCharactersResult =
 /** Personnages du joueur pour le jeu courant (lecture directe ; crée une session anonyme s'il n'y en a pas). */
 export function getCharacters(): Promise<KumpCharactersResult>;
 /** Crée ou met à jour un personnage (validé par `POST /api/game/characters` de kump.fr) ; rend la liste à jour. */
-export function saveCharacter(character: KumpCharacter): Promise<KumpCharactersResult>;
+/** `keepalive` (0.10.2) : l'envoi survit à la fermeture de la page (sauvegarde en quittant ; ≤ 64 Ko). */
+export function saveCharacter(character: KumpCharacter, options?: { keepalive?: boolean }): Promise<KumpCharactersResult>;
 /** Supprime un personnage, définitivement ; rend la liste à jour. */
 export function deleteCharacter(id: string): Promise<KumpCharactersResult>;
 export function pendingSessionCount(): number;

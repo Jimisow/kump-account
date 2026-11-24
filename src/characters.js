@@ -41,9 +41,9 @@ export async function getCharacters() {
   return { ok: true, characters: trier(data.characters) };
 }
 
-async function envoyer(fnName, body) {
+async function envoyer(fnName, body, options) {
   if (!requireReady(fnName) || !requireGameId(fnName)) return { ok: false, error: 'not-ready' };
-  const result = await post(PATH, { gameId: getGameId(), ...body });
+  const result = await post(PATH, { gameId: getGameId(), ...body }, options);
   // Pas de file d'attente : créer / supprimer un héros hors ligne ne peut pas être « validé plus tard » sans mentir au
   // joueur sur sa liste entre-temps (même raisonnement que `purchaseFromServer`). Le jeu garde sa copie locale.
   if (result.networkError) return { ok: false, error: 'offline' };
@@ -56,8 +56,9 @@ async function envoyer(fnName, body) {
  * @param {{ id: string } & object} character
  * @returns {Promise<{ ok: true, characters: object[] } | { ok: false, error: string, field?: string }>}
  */
-export function saveCharacter(character) {
-  return envoyer('saveCharacter', { action: 'save', character });
+export function saveCharacter(character, { keepalive = false } = {}) {
+  // `keepalive` (0.10.2) : sauvegarde au moment où la page se ferme (l'envoi n'est pas coupé par le navigateur)
+  return envoyer('saveCharacter', { action: 'save', character }, { keepalive });
 }
 
 /**
