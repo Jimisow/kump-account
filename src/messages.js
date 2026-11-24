@@ -58,6 +58,14 @@ export const KUMP_MESSAGES = {
   'not-signed-in': 'Compte indisponible, rechargez la page.',
   'not-ready': 'Le compte KUMP est indisponible pour le moment.',
   'too-soon': 'Partie enregistrée, elle sera comptabilisée dans un instant.',
+
+  // --- Personnages (0.10.0) ---
+  'name-taken': 'Vous avez déjà un personnage avec ce nom.',
+  'too-many': 'Nombre maximal de personnages atteint — supprimez-en un d’abord.',
+  'too-big': 'Ce personnage est trop lourd à enregistrer.',
+  'unknown-character': 'Ce personnage n’existe plus.',
+  invalid: 'Ces informations ne sont pas valides.',
+  login: 'Connectez-vous pour continuer.',
   unknown: 'Une erreur est survenue, réessayez.',
 };
 

@@ -88,6 +88,12 @@ export {
 } from './session.js';
 
 export {
+  getCharacters,
+  saveCharacter,
+  deleteCharacter,
+} from './characters.js';
+
+export {
   submitScore,
   fetchLeaderboard,
   fetchRank,

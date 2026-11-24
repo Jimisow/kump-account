@@ -188,6 +188,18 @@ export function submitSession(session: {
   payload?: Record<string, unknown>;
 }): Promise<KumpSessionResult>;
 export function flushSessionQueue(): Promise<{ sent: number; remaining: number }>;
+
+/** Personnage d'un compte (0.10.0) : forme LIBRE, décidée par le schéma du jeu côté serveur ; seul `id` est commun. */
+export type KumpCharacter = { id: string } & Record<string, unknown>;
+export type KumpCharactersResult =
+  | { ok: true; characters: KumpCharacter[] }
+  | { ok: false; error: string; field?: string };
+/** Personnages du joueur pour le jeu courant (lecture directe ; crée une session anonyme s'il n'y en a pas). */
+export function getCharacters(): Promise<KumpCharactersResult>;
+/** Crée ou met à jour un personnage (validé par `POST /api/game/characters` de kump.fr) ; rend la liste à jour. */
+export function saveCharacter(character: KumpCharacter): Promise<KumpCharactersResult>;
+/** Supprime un personnage, définitivement ; rend la liste à jour. */
+export function deleteCharacter(id: string): Promise<KumpCharactersResult>;
 export function pendingSessionCount(): number;
 
 export interface KumpShopItem {

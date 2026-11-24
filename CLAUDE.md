@@ -98,6 +98,22 @@ d'`onDisconnect` (exécuté par le serveur), chat et invitations d'écoutes en d
   0.9.0 (2026-10-20) : `match` — `resumeSalon({ roomId })`, `SalonRoom.readTurns()` (toutes les places), `SalonRoom.onConnected(cb)`, `restoreStart` : reprise d'une partie de SALON
   interrompue (le joueur reste membre, sa place lui laisse écrire ses messages : **aucune règle RTDB modifiée**). Consommateur : Tower (un absent est joué par l'IA de l'hôte, puis revient).
 
+## Personnages d'un compte (0.10.0, 2026-11-26)
+
+`src/characters.js` : `getCharacters()` (lecture directe du document de jeu), `saveCharacter()`, `deleteCharacter()`
+(`POST /api/game/characters` de kump.fr). Premier consommateur : **Les Éclats d'Astria** (`E:\Projet DEV\Jeux\Astria`,
+`gameId` « astria »), qui fait créer ses héros par le joueur (5 au plus).
+- **Pourquoi par le serveur, et pas un champ ouvert dans les règles** : les règles n'autorisent au client que
+  `equippedSkin` / `equippedTrail` ; y ouvrir `characters` obligerait les règles à connaître la forme de chaque jeu,
+  ne permettrait pas « le niveau vient du serveur », et toute correction redéploierait les règles de TOUS les jeux.
+  Côté kump.fr : un SCHÉMA par jeu (`src/lib/game/characters/`), un registre, une transaction — même découpage que
+  les sessions. **Aucune règle Firestore modifiée.**
+- **Ajout pur** : aucune fonction existante n'a changé ; les autres consommateurs n'ont rien à faire (ils prendront
+  0.10.0 à leur prochaine installation, sans effet pour eux).
+- **Pas de file d'attente** (contrairement aux sessions) : créer un héros hors ligne ne peut pas être « validé plus
+  tard » sans mentir au joueur sur sa liste. `offline` est rendu, le jeu garde sa copie locale.
+- Messages ajoutés (`messages.js`) : `name-taken`, `too-many`, `too-big`, `unknown-character`, `invalid`, `login`.
+
 ## L'objectif : installer, et n'avoir plus qu'à habiller
 
 C'est la promesse de ce module, et le critère qui tranche les débats de
@@ -456,6 +472,10 @@ une preuve d'honnêteté.
   `getGameCatalog()`, la couche `ui` (compte, boutique), `match`
   (multijoueur) et `social` (amis, invitations à une partie en ligne, avatar
   public). Voir son `CLAUDE.md` § 4bis.
+- **Les Éclats d'Astria** (`E:\\Projet DEV\\Jeux\\Astria`) — action-RPG coop (Three.js + Vite), `gameId`
+  « astria » (2026-11-26). Module chargé PARESSEUSEMENT (`src/compte/kump.ts`) ; sans compte configuré, le jeu retombe
+  sur sa maquette locale. Utilise la connexion (email, Google, invité) et les PERSONNAGES (0.10.0). Pas encore de
+  `submitSession` (son serveur de jeu dédié viendra plus tard). Voir son `CLAUDE.md` § 6 « Accueil et compte KUMP ».
 - **kump.fr** (`E:\\Projet\\Kump.fr`) — site Next.js : page `/profil` et panel
   admin (`/admin`, dont les routes serveur utilisent le SDK admin, pas ce
   module).

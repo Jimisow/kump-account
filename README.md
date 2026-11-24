@@ -96,6 +96,8 @@ ce serait perdre la progression de tous les joueurs de ce jeu.
 | `submitScore(stats)` | ⚠️ **Ne fonctionne plus depuis la phase 3** : `leaderboards/*` est en écriture fermée, le classement est publié par le serveur en validant un run. Conservée pour un futur jeu sans serveur de validation. |
 | `fetchLeaderboard({ sortBy, thenBy, max })` | Top N. |
 | `fetchRank({ sortBy, value, ... })` | Rang exact du joueur, par comptage serveur. |
+| `getCharacters()` | Personnages du joueur pour CE jeu (0.10.0). Lecture directe. Voir « Personnages d'un compte ». |
+| `saveCharacter(c)` / `deleteCharacter(id)` | Crée / met à jour / supprime un personnage, validé par le serveur (0.10.0). |
 
 ## Validation serveur des parties
 
@@ -166,6 +168,30 @@ Ce n'est pas parce qu'une donnée passe par le serveur qu'elle est prouvée :
 Comme pour `submitRun()`, un refus `retryable` (réserve de temps réel épuisée)
 n'est **pas** un refus : la session retourne en file. Voir `transport.js`, où
 cette distinction vit désormais pour les deux portes à la fois.
+
+## Personnages d'un compte (0.10.0)
+
+Pour un jeu où le joueur CRÉE ses héros (premier : Les Éclats d'Astria, `gameId` « astria », 5 héros au plus).
+
+```js
+import { getCharacters, saveCharacter, deleteCharacter, kumpMessage } from 'kump-account';
+
+const liste = await getCharacters();          // { ok: true, characters } — rangés par date de création
+const r = await saveCharacter({ id: 'p1ab', nom: 'Mirra', classe: 'astromancien', apparence: { … } });
+if (!r.ok) afficher(kumpMessage(r.error));    // 'name-taken', 'too-many', 'invalid' (+ r.field), 'offline'…
+await deleteCharacter('p1ab');                // { ok: true, characters } : la liste à jour
+```
+
+- **L'écriture passe par le serveur** (`POST /api/game/characters` de kump.fr) : les règles Firestore interdisent au
+  client d'écrire son document de jeu (`saveGameData({ characters })` échouerait EN SILENCE). Le serveur valide la
+  forme contre un **schéma propre au jeu** (`Kump.fr/src/lib/game/characters/<jeu>.ts`), borne le nombre de héros,
+  vérifie l'unicité du nom et pose lui-même `niveau`, `creeLe` et `majLe`. Un jeu sans schéma est refusé
+  (`game-unknown`) : ajouter un jeu = un fichier de schéma côté kump.fr, rien ici ni dans les règles.
+- **La lecture est directe** (`users/{uid}/games/{gameId}.characters`, lisible par son propriétaire).
+- **Pas de file d'attente** : une création hors ligne renvoie `offline` (même raisonnement que `purchaseFromServer`) ;
+  le jeu garde sa copie locale et réessaie.
+- ⚠️ **Ce qui est garanti dépend du schéma du jeu** : pour Astria la FORME est garantie, l'inventaire du héros est
+  DÉCLARÉ (une sauvegarde du jeu, pas une économie KUMP : jamais de `coins`, de boutique ni de classement adossé).
 
 ## Boutique et monnaie
 
