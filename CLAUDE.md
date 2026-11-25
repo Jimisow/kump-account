@@ -91,6 +91,9 @@ d'`onDisconnect` (exécuté par le serveur), chat et invitations d'écoutes en d
   redéployer les règles. Afficher ses avatars ailleurs = `registerAvatarSet()` (ou une entrée par défaut dans `AVATAR_SETS`, ui.js).
   ⚠️ `INVITE_HOSTS` est vérifié chez le DESTINATAIRE, avec SA copie du module : un domaine ajouté n'est accepté par un jeu qu'après
   réinstallation de kump-account dans ce jeu (et son déploiement). Ne faire envoyer des invitations vers le nouveau domaine qu'ensuite.
+  0.11.0 (2026-11-26) : `astria.kump.fr` (Les Éclats d'Astria : inviter un ami KUMP à rejoindre son groupe dans le monde en
+  ligne — lien `https://astria.kump.fr/?groupe=<jeton>`) dans `INVITE_HOSTS` ET la regex des règles ; règles testées sur
+  l'émulateur (`Tower/tools/test-social-rules.mjs`) puis déployées (API REST, règles en service sauvegardées d'abord).
   0.7.1 (2026-10-17) : `ltw.kump.fr` (domaine officiel de Line Tower War, `linetower.vercel.app` gardé) — règles testées sur
   l'émulateur (`Tower/tools/test-social-rules.mjs`, 68 vérifications).
   0.8.0 (2026-10-20, POUSSÉ `0d90818`, utilisé par Tower) : `match` — `resumeMatch({ roomId, seat })`, `MatchRoom.readTurns()`, `MatchRoom.onConnected(cb)` (reprise d'une partie 1 contre 1

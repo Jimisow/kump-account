@@ -66,6 +66,7 @@ export const INVITE_HOSTS = Object.freeze([
   'assassins.kump.fr',
   'dtrack.kump.fr',
   'www.kump.fr',
+  'astria.kump.fr', // Les Éclats d'Astria (0.11.0, 2026-11-26) : rejoindre le groupe d'un ami dans le monde en ligne
 ]);
 
 const pairId = (a, b) => (a < b ? `${a}_${b}` : `${b}_${a}`);

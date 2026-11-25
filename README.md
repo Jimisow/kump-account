@@ -361,7 +361,8 @@ openKumpFriends({
 
 - **Compte RÉEL obligatoire** (email ou Google), comme le multijoueur : un compte anonyme n'a pas de pseudo choisi et disparaît avec
   l'appareil. `startKumpSocial()` renvoie `null` ; le panneau propose « Mon compte KUMP ».
-- **Invitations** : `{ url, gameName, [code] }`. L'`url` doit être sur un domaine KUMP connu (`INVITE_HOSTS`, vérifié AUSSI par les
+- **Invitations** : `{ url, gameName, [code] }` (Les Éclats d'Astria, 0.11.0 : `https://astria.kump.fr/?groupe=<jeton>`). L'`url`
+  doit être sur un domaine KUMP connu (`INVITE_HOSTS`, vérifié AUSSI par les
   règles) — un « ami » ne peut pas envoyer quelqu'un sur un site de hameçonnage. Accepter ouvre `url` (ou appelle `onJoin` si c'est le
   même jeu). Un jeu avec multijoueur y met un code de partie `kump-account/match` (Tower : `?play=online&join=CODE`).
 - **Avatars** : chaque jeu publie `{ game, id }` ; les autres jeux l'affichent grâce à `registerAvatarSet(game, { src, cols, rows })`
