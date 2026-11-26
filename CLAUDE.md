@@ -14,10 +14,10 @@ jeux et par le site. Cinq dépôts évoluent ensemble :
 | Dépôt | Rôle |
 |---|---|
 | **kump-account** (ici) | le compte partagé — identité, sauvegarde, trophées, classements |
-| **Androgame** (`E:\Projet\Androgame`) | le premier jeu branché dessus |
-| **Assassins** (`E:\Projet\Assassins`) | jeu social — branché via `submitSession()` |
-| **D-Track** (`E:\Projet\D-Track`) | jeu de dés — branché via `submitSession()` |
-| **kump.fr** (`E:\Projet\Kump.fr`) | profil joueur et panel admin |
+| **Androgame** (`E:\Projet DEV\Kump\Androgame`) | le premier jeu branché dessus |
+| **Assassins** (`E:\Projet DEV\Kump\Assassins`) | jeu social — branché via `submitSession()` |
+| **D-Track** (`E:\Projet DEV\Kump\D-Track`) | jeu de dés — branché via `submitSession()` |
+| **kump.fr** (`E:\Projet DEV\Kump\Kump.fr`) | profil joueur et panel admin |
 
 ⚠️ **Tous les consommateurs installent la branche `main`, sans version
 épinglée.** Un changement d'API cassant doit être répercuté dans TOUS
@@ -468,16 +468,16 @@ une preuve d'honnêteté.
 
 ## Consommateurs actuels
 
-- **Androgame** (`E:\\Projet\\Androgame`) — jeu Phaser. Voir sa section
+- **Androgame** (`E:\\Projet DEV\\Kump\\Androgame`) — jeu Phaser. Voir sa section
   « Compte KUMP » dans son `CLAUDE.md`. Utilise aussi `social` (amis, bouton
   du menu, invitations reçues d'autres jeux) depuis 0.6.0.
-- **Assassins** (`E:\\Projet\\Assassins`) — jeu social, `gameId` « assassins ».
+- **Assassins** (`E:\\Projet DEV\\Kump\\Assassins`) — jeu social, `gameId` « assassins ».
   **Aucun bundler** : le module y est vendorisé dans `public/js/vendor/` et
   résolu par une import map, pas par npm. Voir son `CLAUDE.md`. Amis KUMP
   (`social`) depuis le 2026-10-14 : accueil, hôte (« Inviter » → `?join=CODE`), joueur.
-- **D-Track** (`E:\\Projet\\D-Track`) — jeu de dés (Vite), `gameId` « d-track ». Amis KUMP
+- **D-Track** (`E:\\Projet DEV\\Kump\\D-Track`) — jeu de dés (Vite), `gameId` « d-track ». Amis KUMP
   (`social`) depuis le 2026-10-14 : bouton de l'accueil, « Inviter » crée / réutilise un salon (`?join=CODE`).
-- **Tower Lines** (`E:\\Projet\\Tower`) — Line Tower Defense 1v1 (Canvas 2D,
+- **Tower Lines** (`E:\\Projet DEV\\Kump\\Tower`) — Line Tower Defense 1v1 (Canvas 2D,
   **aucun bundler**), `gameId` « line-tower » (2026-10-10). Même schéma
   qu'Assassins : module vendorisé dans `public/vendor/kump-account/` par
   `npm run sync:kump`, import map, Firebase 10.12.2 depuis gstatic, chargé
@@ -489,7 +489,7 @@ une preuve d'honnêteté.
   « astria » (2026-11-26). Module chargé PARESSEUSEMENT (`src/compte/kump.ts`) ; sans compte configuré, le jeu retombe
   sur sa maquette locale. Utilise la connexion (email, Google, invité) et les PERSONNAGES (0.10.0). Pas encore de
   `submitSession` (son serveur de jeu dédié viendra plus tard). Voir son `CLAUDE.md` § 6 « Accueil et compte KUMP ».
-- **kump.fr** (`E:\\Projet\\Kump.fr`) — site Next.js : page `/profil` et panel
+- **kump.fr** (`E:\\Projet DEV\\Kump\\Kump.fr`) — site Next.js : page `/profil` et panel
   admin (`/admin`, dont les routes serveur utilisent le SDK admin, pas ce
   module).
 
